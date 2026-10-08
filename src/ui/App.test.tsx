@@ -7,6 +7,7 @@ import { SqlSettingsRepository } from '../storage/settings-repository';
 import { createTestDatabase } from '../storage/test-database';
 import { useSettingsStore } from '../store/settings';
 import { DEFAULT_SETTINGS } from '../config/settings';
+import { FakeInput, FakeOutput, FakeProvider } from '../conversation/fakes';
 import { App } from './App';
 
 class MemoryApiKeyStore {
@@ -33,6 +34,12 @@ async function setup(validation: ApiKeyValidation = { ok: true }) {
     profiles: new SqlProfileRepository(db),
     settings: new SqlSettingsRepository(db),
     validateApiKey,
+    conversation: {
+      provider: new FakeProvider(),
+      createInput: () => new FakeInput(),
+      createOutput: (onIdle) => new FakeOutput(onIdle),
+    },
+    screen: { keepAwake: () => Promise.resolve(), allowSleep: () => Promise.resolve() },
   };
   const loadServices = () => Promise.resolve(services);
   return { services, apiKeyStore, validateApiKey, loadServices };
