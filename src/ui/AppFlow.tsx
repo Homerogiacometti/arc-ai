@@ -1,0 +1,57 @@
+import { useEffect, useState } from 'react';
+import { useServices } from '../app/services-context';
+import { startPhase, type Phase } from '../app/start-phase';
+import { useSettingsStore } from '../store/settings';
+import { Home } from './home/Home';
+import { ApiKeyStep } from './onboarding/ApiKeyStep';
+import { ProfileStep } from './onboarding/ProfileStep';
+import { Splash } from './Splash';
+
+export function AppFlow() {
+  const services = useServices();
+  const replaceSettings = useSettingsStore((state) => state.replace);
+  const [phase, setPhase] = useState<Phase | null>(null);
+  const [hasProfile, setHasProfile] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void (async () => {
+      const [apiKey, settings] = await Promise.all([
+        services.apiKeyStore.get(),
+        services.settings.get(),
+      ]);
+      const profile = await services.profiles.get(settings.languageCode);
+      if (controller.signal.aborted) return;
+      replaceSettings(settings);
+      setHasProfile(profile !== null);
+      setPhase(startPhase({ hasApiKey: apiKey !== null, hasProfile: profile !== null }));
+    })();
+    return () => {
+      controller.abort();
+    };
+  }, [services, replaceSettings]);
+
+  switch (phase) {
+    case null:
+      return <Splash />;
+    case 'api-key':
+      return (
+        <ApiKeyStep
+          onSaved={() => {
+            setPhase(startPhase({ hasApiKey: true, hasProfile }));
+          }}
+        />
+      );
+    case 'profile':
+      return (
+        <ProfileStep
+          onSaved={() => {
+            setHasProfile(true);
+            setPhase('home');
+          }}
+        />
+      );
+    case 'home':
+      return <Home />;
+  }
+}

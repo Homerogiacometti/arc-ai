@@ -1,0 +1,50 @@
+@import '@fontsource/source-code-pro/400.css';
+@import '@fontsource/source-code-pro/600.css';
+@import '@fontsource/source-code-pro/700.css';
+
+/* Identidade visual — SPEC §9.1 */
+:root {
+  --color-yellow: #f1bf00;
+  --color-red: #aa151b;
+  --color-black: #000000;
+  --color-white: #ffffff;
+
+  --bg: var(--color-black);
+  --fg: var(--color-white);
+  --muted: rgb(255 255 255 / 60%);
+  --border: rgb(255 255 255 / 20%);
+  --surface: rgb(255 255 255 / 6%);
+  --accent: var(--color-yellow);
+  --danger: var(--color-red);
+
+  --font: 'Source Code Pro', ui-monospace, monospace;
+
+  color-scheme: dark;
+  font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--accent);
+}

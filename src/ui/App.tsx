@@ -1,22 +1,51 @@
-import { findLanguage } from '../config/languages';
-import { useSettingsStore } from '../store/settings';
-import './App.css';
+import { useEffect, useState } from 'react';
+import { createServices, type Services } from '../app/services';
+import { ServicesContext } from '../app/services-context';
+import { AppFlow } from './AppFlow';
+import { Logo } from './Logo';
+import { Splash } from './Splash';
+import './theme.css';
+import './ui.css';
 
-export function App() {
-  const languageCode = useSettingsStore((state) => state.languageCode);
-  const languageLabel = findLanguage(languageCode)?.label ?? languageCode;
+interface AppProps {
+  /** Monta as dependências do app; os testes passam versões falsas. */
+  loadServices?: () => Promise<Services>;
+}
+
+export function App({ loadServices = createServices }: AppProps) {
+  const [services, setServices] = useState<Services | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadServices().then(
+      (loaded) => {
+        if (!cancelled) setServices(loaded);
+      },
+      () => {
+        if (!cancelled) setFailed(true);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [loadServices]);
+
+  if (failed) {
+    return (
+      <main className="screen screen--center">
+        <Logo size="medium" />
+        <p className="screen__text" role="alert">
+          Não foi possível iniciar o app. Feche e abra de novo.
+        </p>
+      </main>
+    );
+  }
+  if (!services) return <Splash />;
 
   return (
-    <main className="home">
-      <header className="home__bar">
-        <span className="home__language" aria-label="Idioma atual">
-          {languageLabel}
-        </span>
-      </header>
-      <section className="home__center">
-        <h1 className="home__title">Arc AI</h1>
-        <p className="home__subtitle">Conversação por voz em breve.</p>
-      </section>
-    </main>
+    <ServicesContext value={services}>
+      <AppFlow />
+    </ServicesContext>
   );
 }

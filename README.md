@@ -4,11 +4,11 @@ App Android para praticar conversação por voz em outros idiomas com a **Gemini
 
 Gratuito, sem backend: cada usuário usa a própria chave de API do Gemini, guardada no Keystore do aparelho. Todos os dados ficam no celular.
 
-> Status: **M1 — Base** concluído. Veja os marcos em [`docs/SPEC.md`](docs/SPEC.md#10-marcos-da-v1).
+> Status: **M2 — Chave e onboarding** concluído. Veja os marcos em [`docs/SPEC.md`](docs/SPEC.md#10-marcos-da-v1).
 
 ## Stack
 
-TypeScript · React · Vite · Capacitor (Android) · Zustand · Zod · Vitest + Testing Library · ESLint + Prettier · GitHub Actions
+TypeScript · React · Vite · Capacitor (Android) · SQLite (`@capacitor-community/sqlite`, sql.js nos testes) · Zustand · Zod · Vitest + Testing Library · ESLint + Prettier · GitHub Actions
 
 Documentação:
 
@@ -27,6 +27,8 @@ Documentação:
 npm install
 npm run dev          # app no navegador (tela e fluxo)
 ```
+
+No navegador, o banco é sql.js em memória (some ao recarregar) e a chave fica no `localStorage` — apenas em dev. No aparelho, o banco é SQLite nativo e a chave fica no Android Keystore.
 
 | Script              | O que faz                                |
 | ------------------- | ---------------------------------------- |
@@ -78,6 +80,7 @@ src/
   storage/        SQLite, migrations, backup
   secure/         chave de API (Keystore)
   config/         idiomas, modelos, níveis de pausa, limites
+  app/            montagem das dependências e fluxo de início
   store/          estado global (Zustand)
   ui/             telas e componentes
 ```

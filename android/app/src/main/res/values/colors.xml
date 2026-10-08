@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Identidade visual — docs/SPEC.md §9.1 -->
+    <color name="arc_yellow">#F1BF00</color>
+    <color name="arc_red">#AA151B</color>
+    <color name="arc_black">#000000</color>
+    <color name="arc_white">#FFFFFF</color>
+</resources>

@@ -2,7 +2,7 @@
 
 > Fonte da verdade do projeto. Toda implementação parte deste documento.
 > Mudanças de escopo ou de decisão técnica atualizam este arquivo e, quando forem decisões de arquitetura, geram um ADR em `docs/adr/`.
-> Versão do documento: 1.2 — 2026-10-08 (decisões da revisão D1–D9 incorporadas; ver histórico no fim)
+> Versão do documento: 1.3 — 2026-10-08 (identidade visual; ver histórico no fim)
 
 ---
 
@@ -256,6 +256,20 @@ A V2 adicionará suas tabelas por migration, sem alterar as existentes.
 - **Onboarding:** chave de API e perfil inicial.
 - **Histórico** e **Detalhe da sessão**.
 
+### 9.1 Identidade visual
+
+| Papel      | Cor                  | Hex       |
+| ---------- | -------------------- | --------- |
+| Primária   | Amarelo              | `#F1BF00` |
+| Primária   | Vermelho             | `#AA151B` |
+| Secundária | Preto (fundo do app) | `#000000` |
+| Secundária | Branco (texto)       | `#FFFFFF` |
+
+- **Fundo do app:** preto.
+- **Tipografia:** [Source Code Pro](https://fonts.google.com/specimen/Source+Code+Pro) (Google Fonts) em todo o app, inclusive no nome. A fonte vai empacotada no app (`@fontsource/source-code-pro`), sem depender de rede.
+- **Nome:** escrito sempre **"Arc AI"**, com "Arc" em amarelo (`#F1BF00`) e "AI" em vermelho (`#AA151B`), em Source Code Pro.
+- Os tokens de cor ficam em variáveis CSS (`src/ui/theme.css`); nenhuma cor é escrita direto nos componentes.
+
 ---
 
 ## 10. Marcos da V1
@@ -301,3 +315,4 @@ A V2 adicionará suas tabelas por migration, sem alterar as existentes.
 | 1.0    | 2026-10-08 | Primeira versão.                                                                                                                                                                                                                                                                                                                           |
 | 1.1    | 2026-10-08 | Todas as decisões confirmadas.                                                                                                                                                                                                                                                                                                             |
 | 1.2    | 2026-10-08 | Revisão D1–D9: nome Arc AI e applicationId; sem backend; reporte via `mailto:`; pausa/retomada em segundo plano (ADR-006) e KeepAwake; repositório privado e CI enxuto; silêncio 2 min + 30 s; limites e orçamento da memória; testes de áudio em aparelho real; medição de latência; plugin de secure storage; SQLite testado com sql.js. |
+| 1.3    | 2026-10-08 | Identidade visual (seção 9.1): amarelo `#F1BF00` e vermelho `#AA151B` como primárias, preto e branco como secundárias, fundo preto, fonte Source Code Pro, nome "Arc AI" bicolor.                                                                                                                                                          |

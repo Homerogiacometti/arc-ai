@@ -1,7 +1,7 @@
 import { DEFAULT_LANGUAGE, findLanguage, LANGUAGES } from './languages';
 import { estimateTokens, MEMORY, SILENCE } from './limits';
 import { PAUSE_LEVELS } from './pause-levels';
-import { settingsSchema } from '../store/settings';
+import { settingsSchema } from './settings';
 
 describe('config', () => {
   it('não tem códigos de idioma repetidos e o padrão existe', () => {
