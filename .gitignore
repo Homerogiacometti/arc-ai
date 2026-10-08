@@ -1,0 +1,19 @@
+node_modules
+dist
+coverage
+*.log
+*.tsbuildinfo
+.env
+.env.*
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Android (o projeto android/ tem seu próprio .gitignore; reforço o essencial)
+android/local.properties
+android/.gradle
+android/app/build
+android/build
+*.keystore
+*.jks
