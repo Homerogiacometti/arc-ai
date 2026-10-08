@@ -33,3 +33,13 @@
 .home__subtitle {
   color: var(--muted);
 }
+
+.home__dev {
+  margin-top: 32px;
+  padding: 10px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
