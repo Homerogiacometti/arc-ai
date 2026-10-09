@@ -16,27 +16,33 @@ export class SqlSettingsRepository implements SettingsRepository {
 
   async get(): Promise<Settings> {
     const [row] = await this.#db.query(
-      'SELECT language_code, response_mode, pause_level FROM settings WHERE id = 1',
+      'SELECT language_code, response_mode, pause_level, voice FROM settings WHERE id = 1',
     );
     if (!row) return DEFAULT_SETTINGS;
-    const parsed = settingsSchema.safeParse({
-      languageCode: row.language_code,
-      responseMode: row.response_mode,
-      pauseLevel: row.pause_level,
-    });
-    // Valor salvo que deixou de existir na configuração (ex.: idioma removido) volta ao padrão.
-    return parsed.success ? parsed.data : DEFAULT_SETTINGS;
+    // Cada campo salvo que deixou de existir na configuração (ex.: idioma removido) volta ao padrão.
+    const field = <K extends keyof Settings>(key: K, value: unknown): Settings[K] => {
+      const parsed = settingsSchema.shape[key].safeParse(value);
+      return parsed.success ? (parsed.data as Settings[K]) : DEFAULT_SETTINGS[key];
+    };
+    return {
+      languageCode: field('languageCode', row.language_code),
+      responseMode: field('responseMode', row.response_mode),
+      pauseLevel: field('pauseLevel', row.pause_level),
+      voice: field('voice', row.voice),
+    };
   }
 
   async update(changes: Partial<Settings>): Promise<Settings> {
     const next = settingsSchema.parse({ ...(await this.get()), ...changes });
     await this.#db.run(
-      `INSERT INTO settings (id, language_code, response_mode, pause_level) VALUES (1, ?, ?, ?)
+      `INSERT INTO settings (id, language_code, response_mode, pause_level, voice)
+       VALUES (1, ?, ?, ?, ?)
        ON CONFLICT (id) DO UPDATE SET
          language_code = excluded.language_code,
          response_mode = excluded.response_mode,
-         pause_level = excluded.pause_level`,
-      [next.languageCode, next.responseMode, next.pauseLevel],
+         pause_level = excluded.pause_level,
+         voice = excluded.voice`,
+      [next.languageCode, next.responseMode, next.pauseLevel, next.voice],
     );
     return next;
   }

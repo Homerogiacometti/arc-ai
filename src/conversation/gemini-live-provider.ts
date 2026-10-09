@@ -28,6 +28,7 @@ export function buildLiveConfig(options: ConnectOptions): LiveConnectConfig {
   return {
     responseModalities: [Modality.AUDIO],
     systemInstruction: options.systemInstruction,
+    speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: options.voiceName } } },
     inputAudioTranscription: {},
     outputAudioTranscription: {},
     realtimeInputConfig: {

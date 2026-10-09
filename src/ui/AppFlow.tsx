@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useServices } from '../app/services-context';
 import { startPhase, type Phase } from '../app/start-phase';
 import { useSettingsStore } from '../store/settings';
+import { RestartContext } from './app-flow';
 import { ApiKeyStep } from './onboarding/ApiKeyStep';
 import { ProfileStep } from './onboarding/ProfileStep';
 import { Screens } from './Screens';
@@ -12,6 +13,11 @@ export function AppFlow() {
   const replaceSettings = useSettingsStore((state) => state.replace);
   const [phase, setPhase] = useState<Phase | null>(null);
   const [hasProfile, setHasProfile] = useState(false);
+  const [generation, setGeneration] = useState(0);
+  const restart = useCallback(() => {
+    setPhase(null);
+    setGeneration((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -29,7 +35,7 @@ export function AppFlow() {
     return () => {
       controller.abort();
     };
-  }, [services, replaceSettings]);
+  }, [services, replaceSettings, generation]);
 
   switch (phase) {
     case null:
@@ -52,6 +58,10 @@ export function AppFlow() {
         />
       );
     case 'home':
-      return <Screens />;
+      return (
+        <RestartContext value={restart}>
+          <Screens />
+        </RestartContext>
+      );
   }
 }

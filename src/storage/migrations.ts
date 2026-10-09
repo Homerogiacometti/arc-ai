@@ -80,6 +80,11 @@ export const MIGRATIONS: readonly Migration[] = [
       'CREATE INDEX memory_language ON memory (language_code, kind, position)',
     ],
   },
+  {
+    // M6: voz da IA (RF16).
+    version: 4,
+    statements: ["ALTER TABLE settings ADD COLUMN voice TEXT NOT NULL DEFAULT 'Puck'"],
+  },
 ];
 
 export async function currentVersion(db: Database): Promise<number> {

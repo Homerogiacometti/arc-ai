@@ -10,6 +10,8 @@ export interface ConnectOptions {
   systemInstruction: string;
   /** Silêncio antes de a IA responder (RF05). */
   silenceDurationMs: number;
+  /** Voz pré-definida da IA (RF16). */
+  voiceName: string;
   /** Handle de retomada de uma conexão anterior (ADR-006, RF08). */
   resumeHandle?: string;
 }

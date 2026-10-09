@@ -35,4 +35,14 @@ describe('SqlProfileRepository', () => {
       repository.save({ ...profile, level: 'expert' as LearnerProfile['level'] }),
     ).rejects.toThrow();
   });
+
+  it('lista os perfis e ignora idioma que saiu da configuração', async () => {
+    const db = await createTestDatabase();
+    const repository = new SqlProfileRepository(db);
+    await repository.save({ languageCode: 'fr-FR', level: 'beginner', interests: '', goals: '' });
+    await db.run(
+      "INSERT INTO learner_profile (language_code, level, updated_at) VALUES ('xx-XX', 'beginner', 'x')",
+    );
+    expect((await repository.list()).map((profile) => profile.languageCode)).toEqual(['fr-FR']);
+  });
 });

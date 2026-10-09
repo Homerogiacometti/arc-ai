@@ -25,12 +25,20 @@ describe('config', () => {
 
   it('valida configurações com Zod', () => {
     expect(
-      settingsSchema.safeParse({ languageCode: 'en-US', responseMode: 'quick', pauseLevel: 'long' })
-        .success,
+      settingsSchema.safeParse({
+        languageCode: 'en-US',
+        responseMode: 'quick',
+        pauseLevel: 'long',
+        voice: 'Kore',
+      }).success,
     ).toBe(true);
     expect(
-      settingsSchema.safeParse({ languageCode: 'xx', responseMode: 'quick', pauseLevel: 'long' })
-        .success,
+      settingsSchema.safeParse({
+        languageCode: 'xx',
+        responseMode: 'quick',
+        pauseLevel: 'long',
+        voice: 'Kore',
+      }).success,
     ).toBe(false);
   });
 });

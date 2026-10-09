@@ -4,7 +4,7 @@ App Android para praticar conversação por voz em outros idiomas com a **Gemini
 
 Gratuito, sem backend: cada usuário usa a própria chave de API do Gemini, guardada no Keystore do aparelho. Todos os dados ficam no celular.
 
-> Status: **M5 — Memória entre sessões** concluído. Veja os marcos em [`docs/SPEC.md`](docs/SPEC.md#10-marcos-da-v1).
+> Status: **M6 — Idioma, modo de resposta e configurações** concluído. Veja os marcos em [`docs/SPEC.md`](docs/SPEC.md#10-marcos-da-v1).
 
 ## Stack
 

@@ -145,7 +145,8 @@ describe('Home', () => {
   it('feedback que falhou pode ser gerado de novo', async () => {
     const user = userEvent.setup();
     const { provider, generateJson } = await setup();
-    generateJson.mockRejectedValue(new Error('offline'));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    generateJson.mockRejectedValue(Object.assign(new Error('high demand'), { status: 503 }));
 
     await user.click(screen.getByRole('button', { name: 'Iniciar' }));
     await screen.findByRole('timer');
@@ -154,8 +155,10 @@ describe('Home', () => {
     });
     await user.click(screen.getByRole('button', { name: 'Parar' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível gerar o feedback');
-    expect(generateJson).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Os servidores do Google estão sobrecarregados agora',
+    );
+    expect(generateJson).toHaveBeenCalledTimes(4);
 
     generateJson.mockReset();
     generateJson.mockResolvedValue(

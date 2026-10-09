@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { produceFeedback } from '../../app/session-records';
 import type { Services } from '../../app/services';
+import type { FeedbackFailure } from '../../feedback/generate-feedback';
 import { useServices } from '../../app/services-context';
 import type { SessionDetail } from '../../storage/session-repository';
 
@@ -8,7 +9,7 @@ export type DetailState =
   | { status: 'loading' }
   | { status: 'missing' }
   | { status: 'generating'; detail: SessionDetail }
-  | { status: 'loaded'; detail: SessionDetail };
+  | { status: 'loaded'; detail: SessionDetail; failure?: FeedbackFailure };
 
 /**
  * Carrega uma sessão. Com `autoGenerate`, gera o feedback pendente na hora (tela de
@@ -56,7 +57,11 @@ async function loadDetail(
     return;
   }
   update({ status: 'generating', detail });
-  await produceFeedback(services, sessionId);
+  const failure = await produceFeedback(services, sessionId);
   const updated = await services.sessions.get(sessionId);
-  update(updated ? { status: 'loaded', detail: updated } : { status: 'missing' });
+  update(
+    updated
+      ? { status: 'loaded', detail: updated, ...(failure ? { failure } : {}) }
+      : { status: 'missing' },
+  );
 }

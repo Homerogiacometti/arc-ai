@@ -23,15 +23,17 @@ const dispatch = (message: object, handlers: ConversationEvents, respond = vi.fn
 };
 
 describe('buildLiveConfig', () => {
-  it('liga transcrição, VAD, compressão, retomada e a ferramenta end_session', () => {
+  it('liga voz, transcrição, VAD, compressão, retomada e a ferramenta end_session', () => {
     const config = buildLiveConfig({
       apiKey: 'k',
       systemInstruction: 'sys',
       silenceDurationMs: 1300,
+      voiceName: 'Kore',
       resumeHandle: 'h1',
     });
     expect(config).toMatchObject({
       systemInstruction: 'sys',
+      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
       inputAudioTranscription: {},
       outputAudioTranscription: {},
       realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 1300 } },
@@ -43,7 +45,12 @@ describe('buildLiveConfig', () => {
   });
 
   it('pede handles de retomada mesmo numa conexão nova', () => {
-    const config = buildLiveConfig({ apiKey: 'k', systemInstruction: '', silenceDurationMs: 800 });
+    const config = buildLiveConfig({
+      apiKey: 'k',
+      systemInstruction: '',
+      silenceDurationMs: 800,
+      voiceName: 'Puck',
+    });
     expect(config.sessionResumption).toEqual({});
   });
 });

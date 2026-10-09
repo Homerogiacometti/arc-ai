@@ -22,6 +22,7 @@ const settings = { languageCode: 'en-US', responseMode: 'balanced' } as const;
 async function setup(generateJson: JsonModel['generateJson']) {
   const db = await createTestDatabase();
   return {
+    db,
     sessions: new SqlSessionRepository(db),
     profiles: new SqlProfileRepository(db),
     memory: new SqlMemoryRepository(db),
@@ -30,7 +31,8 @@ async function setup(generateJson: JsonModel['generateJson']) {
       set: () => Promise.resolve(),
       remove: () => Promise.resolve(),
     },
-    feedbackModel: { name: 'fake-model', generateJson },
+    feedbackModels: [{ name: 'fake-model', generateJson }],
+    feedbackRetryWait: () => Promise.resolve(),
   };
 }
 
@@ -104,11 +106,21 @@ describe('produceFeedback', () => {
     expect((await deps.sessions.get(id))?.feedbackStatus).toBe('ready');
   });
 
-  it('marca como falha quando não consegue gerar', async () => {
-    const deps = await setup(vi.fn(() => Promise.reject(new Error('offline'))));
+  it('marca como falha e devolve o motivo quando não consegue gerar', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const overloaded = Object.assign(new Error('high demand'), { status: 503 });
+    const deps = await setup(vi.fn(() => Promise.reject(overloaded)));
+    const id = (await recordSession(deps, talk, settings)) ?? -1;
+    expect(await produceFeedback(deps, id)).toBe('overloaded');
+    expect((await deps.sessions.get(id))?.feedbackStatus).toBe('failed');
+  });
+
+  it('salva o nome do modelo que gerou o feedback', async () => {
+    const deps = await setup(vi.fn(() => Promise.resolve(JSON.stringify(SAMPLE_RESPONSE))));
     const id = (await recordSession(deps, talk, settings)) ?? -1;
     await produceFeedback(deps, id);
-    expect((await deps.sessions.get(id))?.feedbackStatus).toBe('failed');
+    const [row] = await deps.db.query('SELECT model FROM feedbacks WHERE session_id = ?', [id]);
+    expect(row?.model).toBe('fake-model');
   });
 
   it('chamadas simultâneas para a mesma sessão geram uma vez só', async () => {

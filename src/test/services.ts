@@ -2,6 +2,7 @@ import type { Services } from '../app/services';
 import { FakeInput, FakeOutput, FakeProvider } from '../conversation/fakes';
 import { SAMPLE_RESPONSE } from '../feedback/fixtures';
 import type { JsonModel } from '../feedback/generate-feedback';
+import { eraseAllData } from '../storage/erase-all';
 import { SqlMemoryRepository } from '../storage/memory-repository';
 import { SqlProfileRepository } from '../storage/profile-repository';
 import { SqlSessionRepository } from '../storage/session-repository';
@@ -45,8 +46,16 @@ export async function createTestServices(options: { apiKey?: string | null } = {
     settings: new SqlSettingsRepository(db),
     sessions: new SqlSessionRepository(db),
     memory: new SqlMemoryRepository(db),
-    feedbackModel: { name: 'fake-model', generateJson },
+    feedbackModels: [
+      { name: 'fake-model', generateJson },
+      { name: 'fake-fallback', generateJson },
+    ],
+    feedbackRetryWait: () => Promise.resolve(),
     validateApiKey,
+    eraseAllData: async () => {
+      await eraseAllData(db);
+      await apiKeyStore.remove();
+    },
     conversation: {
       provider,
       createInput: () => new FakeInput(),

@@ -25,6 +25,7 @@ function setup() {
           apiKey: 'k',
           systemInstruction: 'sys',
           silenceDurationMs: 800,
+          voiceName: 'Puck',
           openingCue: 'cue',
         }),
       ended,

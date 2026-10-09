@@ -48,7 +48,7 @@ export function useConversation() {
   }, [running, services.screen]);
 
   const loadOptions = useCallback(async (): Promise<StartOptions> => {
-    const { languageCode, responseMode, pauseLevel } = settings;
+    const { languageCode, responseMode, pauseLevel, voice } = settings;
     const [apiKey, profile, memory] = await Promise.all([
       services.apiKeyStore.get(),
       services.profiles.get(languageCode),
@@ -67,6 +67,7 @@ export function useConversation() {
         memory,
       }),
       silenceDurationMs: PAUSE_LEVELS[pauseLevel].silenceDurationMs,
+      voiceName: voice,
       openingCue: OPENING_CUE,
     };
   }, [services, settings]);

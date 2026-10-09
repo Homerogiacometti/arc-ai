@@ -3,6 +3,8 @@ import type { Database, Row } from './database';
 
 export interface ProfileRepository {
   get(languageCode: string): Promise<LearnerProfile | null>;
+  /** Perfis de todos os idiomas já configurados. */
+  list(): Promise<LearnerProfile[]>;
   save(profile: LearnerProfile): Promise<void>;
 }
 
@@ -21,6 +23,20 @@ export class SqlProfileRepository implements ProfileRepository {
       [languageCode],
     );
     return row ? fromRow(row) : null;
+  }
+
+  async list(): Promise<LearnerProfile[]> {
+    const rows = await this.#db.query(
+      'SELECT language_code, level, interests, goals FROM learner_profile ORDER BY language_code',
+    );
+    // Perfil de um idioma que saiu da configuração é ignorado.
+    return rows.flatMap((row) => {
+      try {
+        return [fromRow(row)];
+      } catch {
+        return [];
+      }
+    });
   }
 
   async save(profile: LearnerProfile): Promise<void> {

@@ -93,6 +93,13 @@ describe('SqlMemoryRepository', () => {
     expect((await repository.forLanguage('en-US')).personal).toEqual(['Trabalha como engenheiro']);
   });
 
+  it('apaga toda a memória', async () => {
+    const { repository } = await setup();
+    await repository.replace('en-US', english);
+    await repository.clear();
+    expect(await repository.list()).toEqual([]);
+  });
+
   it('o banco recusa item pessoal com idioma e erro sem idioma', async () => {
     const { db } = await setup();
     const insert = (kind: string, language: string | null) =>

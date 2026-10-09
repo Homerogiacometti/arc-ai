@@ -2,13 +2,19 @@ import { findLanguage } from '../config/languages';
 import type { LearnerProfile } from '../config/profile';
 import type { Settings } from '../config/settings';
 import type { SessionResult } from '../conversation/session-controller';
-import { generateFeedback, hasUserSpeech } from '../feedback/generate-feedback';
+import {
+  FeedbackError,
+  generateFeedback,
+  hasUserSpeech,
+  type FeedbackFailure,
+} from '../feedback/generate-feedback';
 import { FEEDBACK_PROMPT_VERSION } from '../feedback/prompt';
 import type { MemoryLists } from '../memory/memory';
 import { CONVERSATION_INSTRUCTION_VERSION } from '../prompts/conversation-instruction';
 import type { Services } from './services';
 
-type Deps = Pick<Services, 'sessions' | 'profiles' | 'memory' | 'apiKeyStore' | 'feedbackModel'>;
+type Deps = Pick<Services, 'sessions' | 'profiles' | 'memory' | 'apiKeyStore' | 'feedbackModels'> &
+  Partial<Pick<Services, 'feedbackRetryWait'>>;
 
 /**
  * Salva a sessão encerrada (RF09, RF12). Sessões sem nenhuma fala não são salvas.
@@ -38,9 +44,10 @@ export async function recordSession(
 /**
  * Gera e salva o feedback de uma sessão pendente ou que falhou antes (RF10) e atualiza a
  * memória do aluno com o que a conversa trouxe (RF11).
- * Em caso de falha, a sessão fica com feedback "failed" e pode ser gerada depois.
+ * Em caso de falha, a sessão fica com feedback "failed" e pode ser gerada depois; devolve o
+ * motivo da falha (ou null) para a tela explicar.
  */
-export function produceFeedback(deps: Deps, sessionId: number): Promise<void> {
+export function produceFeedback(deps: Deps, sessionId: number): Promise<FeedbackFailure | null> {
   // A mesma sessão nunca gera feedback duas vezes ao mesmo tempo.
   let running = inFlight.get(sessionId);
   if (!running) {
@@ -52,11 +59,13 @@ export function produceFeedback(deps: Deps, sessionId: number): Promise<void> {
   return running;
 }
 
-const inFlight = new Map<number, Promise<void>>();
+const inFlight = new Map<number, Promise<FeedbackFailure | null>>();
 
-async function runFeedback(deps: Deps, sessionId: number): Promise<void> {
+async function runFeedback(deps: Deps, sessionId: number): Promise<FeedbackFailure | null> {
   const detail = await deps.sessions.get(sessionId);
-  if (!detail || detail.feedbackStatus === 'ready' || detail.feedbackStatus === 'skipped') return;
+  if (!detail || detail.feedbackStatus === 'ready' || detail.feedbackStatus === 'skipped') {
+    return null;
+  }
 
   try {
     const language = findLanguage(detail.languageCode);
@@ -68,21 +77,29 @@ async function runFeedback(deps: Deps, sessionId: number): Promise<void> {
       interests: '',
       goals: '',
     };
-    const { memory, ...feedback } = await generateFeedback(deps.feedbackModel, apiKey, {
-      language,
-      profile,
-      transcript: detail.transcript,
-      memory: await deps.memory.forLanguage(detail.languageCode),
-    });
+    const { response, model } = await generateFeedback(
+      deps.feedbackModels,
+      apiKey,
+      {
+        language,
+        profile,
+        transcript: detail.transcript,
+        memory: await deps.memory.forLanguage(detail.languageCode),
+      },
+      deps.feedbackRetryWait ? { wait: deps.feedbackRetryWait } : {},
+    );
+    const { memory, ...feedback } = response;
     await deps.sessions.saveFeedback(sessionId, feedback, {
-      model: deps.feedbackModel.name,
+      model,
       promptVersion: FEEDBACK_PROMPT_VERSION,
     });
     await saveMemory(deps, detail.languageCode, memory);
+    return null;
   } catch (error) {
     // Diagnóstico (só tipo e mensagem; a chave nunca aparece nesses erros).
     console.warn('[feedback] falhou:', describeError(error));
     await deps.sessions.setFeedbackStatus(sessionId, 'failed');
+    return error instanceof FeedbackError ? error.reason : 'invalid';
   }
 }
 

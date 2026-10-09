@@ -19,11 +19,21 @@ describe('SqlSettingsRepository', () => {
     });
   });
 
-  it('volta ao padrão se o valor salvo não existe mais na configuração', async () => {
+  it('volta ao padrão só o campo cujo valor salvo não existe mais', async () => {
     const db = await createTestDatabase();
     await db.run(
-      "INSERT INTO settings (id, language_code, response_mode, pause_level) VALUES (1, 'xx-XX', 'quick', 'short')",
+      "INSERT INTO settings (id, language_code, response_mode, pause_level, voice) VALUES (1, 'xx-XX', 'quick', 'short', 'Nenhuma')",
     );
-    expect(await new SqlSettingsRepository(db).get()).toEqual(DEFAULT_SETTINGS);
+    expect(await new SqlSettingsRepository(db).get()).toEqual({
+      ...DEFAULT_SETTINGS,
+      responseMode: 'quick',
+      pauseLevel: 'short',
+    });
+  });
+
+  it('salva a voz', async () => {
+    const repository = new SqlSettingsRepository(await createTestDatabase());
+    await repository.update({ voice: 'Kore' });
+    expect((await repository.get()).voice).toBe('Kore');
   });
 });

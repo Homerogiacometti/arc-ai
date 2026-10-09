@@ -3,10 +3,12 @@ import { PcmPlayer } from '../audio/player';
 import type { ConversationProvider } from '../conversation/provider';
 import type { JsonModel } from '../feedback/generate-feedback';
 import { GeminiTextModel } from '../feedback/gemini-text-model';
+import { MODELS } from '../config/models';
 import type { AudioInput, AudioOutput } from '../conversation/session-controller';
 import type { ApiKeyStore } from '../secure/api-key-store';
 import { createApiKeyStore } from '../secure/create-api-key-store';
 import { validateApiKey, type ApiKeyValidation } from '../secure/validate-api-key';
+import { eraseAllData } from '../storage/erase-all';
 import { SqlMemoryRepository, type MemoryRepository } from '../storage/memory-repository';
 import { openDatabase } from '../storage/open-database';
 import { SqlProfileRepository, type ProfileRepository } from '../storage/profile-repository';
@@ -21,8 +23,13 @@ export interface Services {
   settings: SettingsRepository;
   sessions: SessionRepository;
   memory: MemoryRepository;
-  feedbackModel: JsonModel;
+  /** Modelos do feedback em ordem de preferência: principal e reserva. */
+  feedbackModels: readonly JsonModel[];
+  /** Espera entre tentativas do feedback; padrão: tempo real. Os testes passam uma instantânea. */
+  feedbackRetryWait?: (ms: number) => Promise<void>;
   validateApiKey: (apiKey: string) => Promise<ApiKeyValidation>;
+  /** Apaga todos os dados do app e a chave de API (RF16). */
+  eraseAllData: () => Promise<void>;
   conversation: {
     provider: ConversationProvider;
     createInput: () => AudioInput;
@@ -39,8 +46,12 @@ export async function createServices(): Promise<Services> {
     settings: new SqlSettingsRepository(db),
     sessions: new SqlSessionRepository(db),
     memory: new SqlMemoryRepository(db),
-    feedbackModel: new GeminiTextModel(),
+    feedbackModels: [new GeminiTextModel(MODELS.text), new GeminiTextModel(MODELS.textFallback)],
     validateApiKey: (apiKey) => validateApiKey(apiKey),
+    eraseAllData: async () => {
+      await eraseAllData(db);
+      await apiKeyStore.remove();
+    },
     conversation: {
       provider: lazyGeminiProvider(),
       createInput: () => new Microphone(),

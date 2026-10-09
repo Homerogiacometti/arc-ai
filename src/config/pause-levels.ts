@@ -4,10 +4,25 @@
  * percebida aumenta. Valores provisórios, ajustados em testes reais (M9).
  */
 export const PAUSE_LEVELS = {
-  short: { label: 'Curta', silenceDurationMs: 800 },
-  medium: { label: 'Média', silenceDurationMs: 1300 },
-  long: { label: 'Longa', silenceDurationMs: 2000 },
-} as const satisfies Record<string, { label: string; silenceDurationMs: number }>;
+  short: {
+    label: 'Curta',
+    description: 'A IA responde logo que você para',
+    silenceDurationMs: 800,
+  },
+  medium: {
+    label: 'Média',
+    description: 'Equilíbrio entre agilidade e tempo para pensar',
+    silenceDurationMs: 1300,
+  },
+  long: {
+    label: 'Longa',
+    description: 'Mais tempo para pensar; a IA demora um pouco mais',
+    silenceDurationMs: 2000,
+  },
+} as const satisfies Record<
+  string,
+  { label: string; description: string; silenceDurationMs: number }
+>;
 
 export type PauseLevel = keyof typeof PAUSE_LEVELS;
 

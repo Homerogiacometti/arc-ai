@@ -7,6 +7,11 @@ export const MODELS = {
   live: 'gemini-3.8-live',
   /** Feedback e memória (API de texto, saída estruturada em JSON). */
   text: 'gemini-3.8-flash',
+  /**
+   * Reserva do feedback quando o principal está sobrecarregado (503): Flash-Lite estável, o
+   * mais rápido (conferido em 2026-10-08).
+   */
+  textFallback: 'gemini-3.5-flash-lite',
 } as const;
 
 export type ModelRole = keyof typeof MODELS;

@@ -27,6 +27,8 @@ export interface MemoryRepository {
   /** Substitui as listas do idioma (e as pessoais) pelas atualizadas no feedback. */
   replace(languageCode: string, lists: MemoryLists): Promise<void>;
   remove(id: number): Promise<void>;
+  /** Apaga toda a memória, de todos os idiomas. */
+  clear(): Promise<void>;
 }
 
 const KIND_OF: Record<MemoryListName, MemoryKind> = {
@@ -102,6 +104,10 @@ export class SqlMemoryRepository implements MemoryRepository {
 
   async remove(id: number): Promise<void> {
     await this.#db.run('DELETE FROM memory WHERE id = ?', [id]);
+  }
+
+  async clear(): Promise<void> {
+    await this.#db.run('DELETE FROM memory');
   }
 
   async #select(languageCode: string): Promise<MemoryItem[]> {

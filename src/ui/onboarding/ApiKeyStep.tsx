@@ -2,15 +2,18 @@ import { useId, useState, type SubmitEvent } from 'react';
 import { useServices } from '../../app/services-context';
 import { API_KEY_ERROR_MESSAGES, normalizeApiKey } from '../../secure/validate-api-key';
 import { Logo } from '../Logo';
+import { ScreenHeader } from '../ScreenHeader';
 
 const AI_STUDIO_URL = 'https://aistudio.google.com/apikey';
 
 interface ApiKeyStepProps {
   onSaved: () => void;
+  /** Nas configurações (trocar a chave) a tela tem cabeçalho com voltar em vez do logo. */
+  variant?: 'onboarding' | 'settings';
 }
 
 /** RF01: explica a chave, mostra como gerá-la, valida e guarda no armazenamento seguro. */
-export function ApiKeyStep({ onSaved }: ApiKeyStepProps) {
+export function ApiKeyStep({ onSaved, variant = 'onboarding' }: ApiKeyStepProps) {
   const { apiKeyStore, validateApiKey } = useServices();
   const inputId = useId();
   const [value, setValue] = useState('');
@@ -40,8 +43,14 @@ export function ApiKeyStep({ onSaved }: ApiKeyStepProps) {
 
   return (
     <main className="screen">
-      <Logo size="medium" />
-      <h1 className="screen__title">Sua chave do Gemini</h1>
+      {variant === 'onboarding' ? (
+        <>
+          <Logo size="medium" />
+          <h1 className="screen__title">Sua chave do Gemini</h1>
+        </>
+      ) : (
+        <ScreenHeader title="Trocar chave de API" />
+      )}
       <p className="screen__text">
         O Arc AI conversa com você usando a IA do Google (Gemini) com a sua própria chave de API.
         Ela fica guardada só neste aparelho, no armazenamento seguro do Android, e o uso é
