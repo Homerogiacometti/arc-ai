@@ -1,17 +1,26 @@
 import type { Language } from '../config/languages';
+import { MEMORY } from '../config/limits';
 import type { LearnerProfile } from '../config/profile';
+import type { MemoryLists } from '../memory/memory';
 import type { TranscriptEntry } from '../storage/session-repository';
 
 /** Versão do prompt de feedback; incrementar a cada mudança de conteúdo. */
-export const FEEDBACK_PROMPT_VERSION = 1;
+export const FEEDBACK_PROMPT_VERSION = 2;
 
 export interface FeedbackInput {
   language: Language;
   profile: LearnerProfile;
   transcript: TranscriptEntry[];
+  /** Memória atual do aluno nesse idioma (RF11), para ser mesclada com esta conversa. */
+  memory: MemoryLists;
 }
 
-export function buildFeedbackPrompt({ language, profile, transcript }: FeedbackInput): string {
+export function buildFeedbackPrompt({
+  language,
+  profile,
+  transcript,
+  memory,
+}: FeedbackInput): string {
   const lines = transcript
     .map((turn) => `${turn.speaker === 'user' ? 'USER' : 'AI'}: ${turn.text}`)
     .join('\n');
@@ -29,6 +38,19 @@ Regras:
 - Em "vocabulary", sugira até 5 formas mais naturais para o que o aluno disse.
 - Em "strengths", de 1 a 4 itens concretos.
 - Estime o nível CEFR só com base nesta conversa. Nível autodeclarado pelo aluno: ${profile.level}.
+
+Memória:
+A IA da conversa usa uma memória curta do aluno para conduzir as próximas conversas: puxar assunto da vida dele, criar oportunidades de praticar os erros frequentes e reforçar o que ele já faz bem. Devolva em "memory" as três listas atualizadas e completas, partindo da memória atual:
+- "personal": fatos da vida do aluno úteis para puxar assunto (trabalho, estudos, família, hobbies, planos, acontecimentos recentes ou próximos). Vale para todos os idiomas. No máximo ${String(MEMORY.maxPersonalItems)}.
+- "mistakes": padrões de erro recorrentes em ${language.nativeName}, não frases isoladas, do mais importante ao menos importante. No máximo ${String(MEMORY.maxMistakesPerLanguage)}.
+- "strengths": o que o aluno já faz bem em ${language.nativeName}, do mais importante ao menos importante. No máximo ${String(MEMORY.maxStrengthsPerLanguage)}.
+- Mantenha os itens atuais que continuam válidos, junte itens repetidos ou parecidos em um só, atualize fatos que mudaram e acrescente o que esta conversa trouxe de novo. Quando a lista estiver cheia, fique com os mais úteis.
+- Um erro da memória que o aluno usou corretamente nesta conversa pode sair de "mistakes" e virar acerto.
+- Em "personal", só o que o aluno contou sobre si mesmo. Não guarde dados sensíveis (saúde, religião, política, vida sexual, finanças, documentos, endereços).
+- Cada item em português, curto (até 15 palavras); exemplos no idioma praticado entre aspas.
+
+Memória atual:
+${JSON.stringify(memory, null, 2)}
 
 Conversa:
 ${lines}`;

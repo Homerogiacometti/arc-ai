@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { buildFeedbackPrompt, type FeedbackInput } from './prompt';
-import { feedbackJsonSchema, feedbackSchema, type Feedback } from './schema';
+import { feedbackJsonSchema, feedbackResponseSchema, type FeedbackResponse } from './schema';
 
 /** Modelo de texto com saída estruturada. Implementação real em `gemini-text-model.ts`. */
 export interface JsonModel {
@@ -19,21 +19,21 @@ export class FeedbackError extends Error {
 const MAX_ATTEMPTS = 2;
 
 /**
- * Gera o feedback (RF10): a resposta precisa validar no schema Zod; se falhar (rede,
+ * Gera o feedback (RF10) e a memória atualizada (RF11): a resposta precisa validar no schema Zod; se falhar (rede,
  * JSON inválido ou fora do schema), tenta mais uma vez antes de desistir.
  */
 export async function generateFeedback(
   model: JsonModel,
   apiKey: string,
   input: FeedbackInput,
-): Promise<Feedback> {
+): Promise<FeedbackResponse> {
   const prompt = buildFeedbackPrompt(input);
   const schema = feedbackJsonSchema();
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const raw = await model.generateJson(apiKey, prompt, schema);
-      return feedbackSchema.parse(JSON.parse(raw));
+      return feedbackResponseSchema.parse(JSON.parse(raw));
     } catch (error) {
       lastError = error;
       console.warn(`[feedback] tentativa ${String(attempt)} falhou:`, summarize(error));

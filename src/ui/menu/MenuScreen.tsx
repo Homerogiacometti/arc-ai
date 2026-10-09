@@ -1,9 +1,10 @@
 import { useNavigation, type Route } from '../navigation';
 import { ScreenHeader } from '../ScreenHeader';
 
-/** Itens do menu (SPEC §9). Idioma, modo, cronograma, memória e configurações chegam nos próximos marcos. */
+/** Itens do menu (SPEC §9). Idioma, modo, cronograma e configurações chegam nos próximos marcos. */
 const ITEMS: { label: string; route: Route }[] = [
   { label: 'Histórico', route: { name: 'history' } },
+  { label: 'Memória', route: { name: 'memory' } },
 ];
 
 export function MenuScreen() {

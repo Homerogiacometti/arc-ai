@@ -5,6 +5,7 @@ export type Route =
   | { name: 'home' }
   | { name: 'menu' }
   | { name: 'history' }
+  | { name: 'memory' }
   | { name: 'session'; id: number }
   | { name: 'feedback'; id: number };
 

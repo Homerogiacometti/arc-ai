@@ -4,10 +4,11 @@ import type { Settings } from '../config/settings';
 import type { SessionResult } from '../conversation/session-controller';
 import { generateFeedback, hasUserSpeech } from '../feedback/generate-feedback';
 import { FEEDBACK_PROMPT_VERSION } from '../feedback/prompt';
+import type { MemoryLists } from '../memory/memory';
 import { CONVERSATION_INSTRUCTION_VERSION } from '../prompts/conversation-instruction';
 import type { Services } from './services';
 
-type Deps = Pick<Services, 'sessions' | 'profiles' | 'apiKeyStore' | 'feedbackModel'>;
+type Deps = Pick<Services, 'sessions' | 'profiles' | 'memory' | 'apiKeyStore' | 'feedbackModel'>;
 
 /**
  * Salva a sessão encerrada (RF09, RF12). Sessões sem nenhuma fala não são salvas.
@@ -35,7 +36,8 @@ export async function recordSession(
 }
 
 /**
- * Gera e salva o feedback de uma sessão pendente ou que falhou antes (RF10).
+ * Gera e salva o feedback de uma sessão pendente ou que falhou antes (RF10) e atualiza a
+ * memória do aluno com o que a conversa trouxe (RF11).
  * Em caso de falha, a sessão fica com feedback "failed" e pode ser gerada depois.
  */
 export function produceFeedback(deps: Deps, sessionId: number): Promise<void> {
@@ -66,19 +68,34 @@ async function runFeedback(deps: Deps, sessionId: number): Promise<void> {
       interests: '',
       goals: '',
     };
-    const feedback = await generateFeedback(deps.feedbackModel, apiKey, {
+    const { memory, ...feedback } = await generateFeedback(deps.feedbackModel, apiKey, {
       language,
       profile,
       transcript: detail.transcript,
+      memory: await deps.memory.forLanguage(detail.languageCode),
     });
     await deps.sessions.saveFeedback(sessionId, feedback, {
       model: deps.feedbackModel.name,
       promptVersion: FEEDBACK_PROMPT_VERSION,
     });
+    await saveMemory(deps, detail.languageCode, memory);
   } catch (error) {
     // Diagnóstico (só tipo e mensagem; a chave nunca aparece nesses erros).
     console.warn('[feedback] falhou:', describeError(error));
     await deps.sessions.setFeedbackStatus(sessionId, 'failed');
+  }
+}
+
+/** Falhar ao salvar a memória não invalida o feedback já salvo; a próxima sessão tenta de novo. */
+async function saveMemory(
+  deps: Pick<Deps, 'memory'>,
+  languageCode: string,
+  memory: MemoryLists,
+): Promise<void> {
+  try {
+    await deps.memory.replace(languageCode, memory);
+  } catch (error) {
+    console.warn('[memória] falhou:', describeError(error));
   }
 }
 

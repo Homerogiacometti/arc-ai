@@ -2,6 +2,7 @@ import { FeedbackScreen } from './feedback/FeedbackScreen';
 import { HistoryScreen } from './history/HistoryScreen';
 import { SessionScreen } from './history/SessionScreen';
 import { Home } from './home/Home';
+import { MemoryScreen } from './memory/MemoryScreen';
 import { MenuScreen } from './menu/MenuScreen';
 import { useHistorySync, useNavigation } from './navigation';
 
@@ -17,6 +18,8 @@ export function Screens() {
       return <MenuScreen />;
     case 'history':
       return <HistoryScreen />;
+    case 'memory':
+      return <MemoryScreen />;
     case 'session':
       return <SessionScreen key={route.id} sessionId={route.id} />;
     case 'feedback':

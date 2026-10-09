@@ -48,6 +48,30 @@ describe('Home', () => {
     expect(screenLock.allowSleep).toHaveBeenCalled();
   });
 
+  it('o feedback atualiza a memória e a próxima conversa já a usa (RF11)', async () => {
+    const user = userEvent.setup();
+    const { provider, services } = await setup();
+
+    await user.click(screen.getByRole('button', { name: 'Iniciar' }));
+    await screen.findByRole('timer');
+    expect(provider.current.options.systemInstruction).not.toContain('NOTES');
+    act(() => {
+      provider.current.events.onTranscript('user', 'Yesterday I go to the beach');
+    });
+    await user.click(screen.getByRole('button', { name: 'Parar' }));
+    expect(await screen.findByText('Yesterday I went to the beach')).toBeInTheDocument();
+    await vi.waitFor(async () => {
+      expect((await services.memory.forLanguage('en-US')).personal).toEqual([
+        'Foi à praia no fim de semana',
+      ]);
+    });
+
+    await user.click(screen.getByRole('button', { name: '← Fechar' }));
+    await user.click(await screen.findByRole('button', { name: 'Iniciar' }));
+    await screen.findByRole('timer');
+    expect(provider.current.options.systemInstruction).toContain('- Foi à praia no fim de semana');
+  });
+
   it('explica quando não consegue iniciar', async () => {
     const user = userEvent.setup();
     const { provider } = await setup();
@@ -135,7 +159,7 @@ describe('Home', () => {
 
     generateJson.mockReset();
     generateJson.mockResolvedValue(
-      JSON.stringify((await import('../../feedback/fixtures')).SAMPLE_FEEDBACK),
+      JSON.stringify((await import('../../feedback/fixtures')).SAMPLE_RESPONSE),
     );
     await user.click(screen.getByRole('button', { name: 'Gerar feedback' }));
     expect(await screen.findByText('Yesterday I went to the beach')).toBeInTheDocument();

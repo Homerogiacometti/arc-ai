@@ -49,9 +49,10 @@ export function useConversation() {
 
   const loadOptions = useCallback(async (): Promise<StartOptions> => {
     const { languageCode, responseMode, pauseLevel } = settings;
-    const [apiKey, profile] = await Promise.all([
+    const [apiKey, profile, memory] = await Promise.all([
       services.apiKeyStore.get(),
       services.profiles.get(languageCode),
+      services.memory.forLanguage(languageCode),
     ]);
     const language = findLanguage(languageCode);
     if (!apiKey) throw new Error('Chave de API ausente');
@@ -59,7 +60,12 @@ export function useConversation() {
     startedWith.current = { languageCode, responseMode };
     return {
       apiKey,
-      systemInstruction: buildConversationInstruction({ language, profile, responseMode }),
+      systemInstruction: buildConversationInstruction({
+        language,
+        profile,
+        responseMode,
+        memory,
+      }),
       silenceDurationMs: PAUSE_LEVELS[pauseLevel].silenceDurationMs,
       openingCue: OPENING_CUE,
     };

@@ -7,6 +7,7 @@ import type { AudioInput, AudioOutput } from '../conversation/session-controller
 import type { ApiKeyStore } from '../secure/api-key-store';
 import { createApiKeyStore } from '../secure/create-api-key-store';
 import { validateApiKey, type ApiKeyValidation } from '../secure/validate-api-key';
+import { SqlMemoryRepository, type MemoryRepository } from '../storage/memory-repository';
 import { openDatabase } from '../storage/open-database';
 import { SqlProfileRepository, type ProfileRepository } from '../storage/profile-repository';
 import { SqlSessionRepository, type SessionRepository } from '../storage/session-repository';
@@ -19,6 +20,7 @@ export interface Services {
   profiles: ProfileRepository;
   settings: SettingsRepository;
   sessions: SessionRepository;
+  memory: MemoryRepository;
   feedbackModel: JsonModel;
   validateApiKey: (apiKey: string) => Promise<ApiKeyValidation>;
   conversation: {
@@ -36,6 +38,7 @@ export async function createServices(): Promise<Services> {
     profiles: new SqlProfileRepository(db),
     settings: new SqlSettingsRepository(db),
     sessions: new SqlSessionRepository(db),
+    memory: new SqlMemoryRepository(db),
     feedbackModel: new GeminiTextModel(),
     validateApiKey: (apiKey) => validateApiKey(apiKey),
     conversation: {

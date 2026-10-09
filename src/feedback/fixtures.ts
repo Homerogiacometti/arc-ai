@@ -1,4 +1,4 @@
-import type { Feedback } from './schema';
+import type { Feedback, FeedbackResponse } from './schema';
 
 /** Feedback válido para testes. */
 export const SAMPLE_FEEDBACK: Feedback = {
@@ -20,4 +20,14 @@ export const SAMPLE_FEEDBACK: Feedback = {
     },
   ],
   level: { cefr: 'B1', comment: 'Comunica bem ideias do dia a dia, com erros de tempo verbal.' },
+};
+
+/** Resposta válida do modelo para testes: o feedback e a memória atualizada. */
+export const SAMPLE_RESPONSE: FeedbackResponse = {
+  ...SAMPLE_FEEDBACK,
+  memory: {
+    personal: ['Foi à praia no fim de semana'],
+    mistakes: ['Usa presente no lugar do passado ("I go" por "I went")'],
+    strengths: ['Descreve o fim de semana com fluência'],
+  },
 };

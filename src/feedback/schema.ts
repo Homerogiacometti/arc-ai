@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { memoryUpdateSchema } from '../memory/memory';
 
 export const MISTAKE_CATEGORIES = {
   grammar: 'Gramática',
@@ -50,9 +51,21 @@ export const feedbackSchema = z.object({
 
 export type Feedback = z.infer<typeof feedbackSchema>;
 
+/**
+ * Resposta do modelo de texto: o feedback mais a memória atualizada (RF11). Só o feedback
+ * é salvo junto da sessão; a memória vai para a tabela própria.
+ */
+export const feedbackResponseSchema = feedbackSchema.extend({
+  memory: memoryUpdateSchema.describe(
+    'Memória do aluno atualizada com esta conversa: as três listas completas, já mescladas.',
+  ),
+});
+
+export type FeedbackResponse = z.infer<typeof feedbackResponseSchema>;
+
 /** JSON Schema para a saída estruturada do modelo de texto. */
 export function feedbackJsonSchema(): Record<string, unknown> {
-  const schema = z.toJSONSchema(feedbackSchema) as Record<string, unknown>;
+  const schema = z.toJSONSchema(feedbackResponseSchema) as Record<string, unknown>;
   delete schema.$schema;
   return schema;
 }

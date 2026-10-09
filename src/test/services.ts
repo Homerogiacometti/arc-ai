@@ -1,7 +1,8 @@
 import type { Services } from '../app/services';
 import { FakeInput, FakeOutput, FakeProvider } from '../conversation/fakes';
-import { SAMPLE_FEEDBACK } from '../feedback/fixtures';
+import { SAMPLE_RESPONSE } from '../feedback/fixtures';
 import type { JsonModel } from '../feedback/generate-feedback';
+import { SqlMemoryRepository } from '../storage/memory-repository';
 import { SqlProfileRepository } from '../storage/profile-repository';
 import { SqlSessionRepository } from '../storage/session-repository';
 import { SqlSettingsRepository } from '../storage/settings-repository';
@@ -31,7 +32,7 @@ export async function createTestServices(options: { apiKey?: string | null } = {
   );
   const provider = new FakeProvider();
   const generateJson = vi.fn<JsonModel['generateJson']>(() =>
-    Promise.resolve(JSON.stringify(SAMPLE_FEEDBACK)),
+    Promise.resolve(JSON.stringify(SAMPLE_RESPONSE)),
   );
   const screen = {
     keepAwake: vi.fn(() => Promise.resolve()),
@@ -43,6 +44,7 @@ export async function createTestServices(options: { apiKey?: string | null } = {
     profiles: new SqlProfileRepository(db),
     settings: new SqlSettingsRepository(db),
     sessions: new SqlSessionRepository(db),
+    memory: new SqlMemoryRepository(db),
     feedbackModel: { name: 'fake-model', generateJson },
     validateApiKey,
     conversation: {

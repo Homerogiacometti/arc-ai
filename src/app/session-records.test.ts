@@ -1,6 +1,7 @@
 import type { SessionResult } from '../conversation/session-controller';
-import { SAMPLE_FEEDBACK } from '../feedback/fixtures';
+import { SAMPLE_FEEDBACK, SAMPLE_RESPONSE } from '../feedback/fixtures';
 import type { JsonModel } from '../feedback/generate-feedback';
+import { SqlMemoryRepository } from '../storage/memory-repository';
 import { SqlProfileRepository } from '../storage/profile-repository';
 import { SqlSessionRepository } from '../storage/session-repository';
 import { createTestDatabase } from '../storage/test-database';
@@ -23,6 +24,7 @@ async function setup(generateJson: JsonModel['generateJson']) {
   return {
     sessions: new SqlSessionRepository(db),
     profiles: new SqlProfileRepository(db),
+    memory: new SqlMemoryRepository(db),
     apiKeyStore: {
       get: () => Promise.resolve('key'),
       set: () => Promise.resolve(),
@@ -65,13 +67,41 @@ describe('produceFeedback', () => {
   ]);
 
   it('gera e salva o feedback', async () => {
-    const deps = await setup(vi.fn(() => Promise.resolve(JSON.stringify(SAMPLE_FEEDBACK))));
+    const deps = await setup(vi.fn(() => Promise.resolve(JSON.stringify(SAMPLE_RESPONSE))));
     const id = (await recordSession(deps, talk, settings)) ?? -1;
     await produceFeedback(deps, id);
     expect(await deps.sessions.get(id)).toMatchObject({
       feedbackStatus: 'ready',
       feedback: SAMPLE_FEEDBACK,
     });
+  });
+
+  it('atualiza a memória do idioma a partir da memória atual', async () => {
+    const generateJson = vi.fn<JsonModel['generateJson']>(() =>
+      Promise.resolve(JSON.stringify(SAMPLE_RESPONSE)),
+    );
+    const deps = await setup(generateJson);
+    await deps.memory.replace('en-US', {
+      personal: ['Trabalha como engenheiro'],
+      mistakes: [],
+      strengths: [],
+    });
+    const id = (await recordSession(deps, talk, settings)) ?? -1;
+    await produceFeedback(deps, id);
+
+    expect(generateJson.mock.calls[0]?.[1]).toContain('Trabalha como engenheiro');
+    expect(await deps.memory.forLanguage('en-US')).toEqual(SAMPLE_RESPONSE.memory);
+    // O feedback salvo não leva a memória junto.
+    expect((await deps.sessions.get(id))?.feedback).toEqual(SAMPLE_FEEDBACK);
+  });
+
+  it('falha ao salvar a memória não invalida o feedback', async () => {
+    const deps = await setup(vi.fn(() => Promise.resolve(JSON.stringify(SAMPLE_RESPONSE))));
+    vi.spyOn(deps.memory, 'replace').mockRejectedValueOnce(new Error('disco cheio'));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const id = (await recordSession(deps, talk, settings)) ?? -1;
+    await produceFeedback(deps, id);
+    expect((await deps.sessions.get(id))?.feedbackStatus).toBe('ready');
   });
 
   it('marca como falha quando não consegue gerar', async () => {
@@ -82,7 +112,7 @@ describe('produceFeedback', () => {
   });
 
   it('chamadas simultâneas para a mesma sessão geram uma vez só', async () => {
-    const generateJson = vi.fn(() => Promise.resolve(JSON.stringify(SAMPLE_FEEDBACK)));
+    const generateJson = vi.fn(() => Promise.resolve(JSON.stringify(SAMPLE_RESPONSE)));
     const deps = await setup(generateJson);
     const id = (await recordSession(deps, talk, settings)) ?? -1;
     await Promise.all([produceFeedback(deps, id), produceFeedback(deps, id)]);
@@ -91,7 +121,7 @@ describe('produceFeedback', () => {
   });
 
   it('não chama o modelo de novo se o feedback já existe', async () => {
-    const generateJson = vi.fn(() => Promise.resolve(JSON.stringify(SAMPLE_FEEDBACK)));
+    const generateJson = vi.fn(() => Promise.resolve(JSON.stringify(SAMPLE_RESPONSE)));
     const deps = await setup(generateJson);
     const id = (await recordSession(deps, talk, settings)) ?? -1;
     await produceFeedback(deps, id);

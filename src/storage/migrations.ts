@@ -64,6 +64,22 @@ export const MIGRATIONS: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    // M5: memória entre sessões (RF11). Itens pessoais não têm idioma; erros e acertos têm.
+    version: 3,
+    statements: [
+      `CREATE TABLE memory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind TEXT NOT NULL CHECK (kind IN ('personal', 'mistake', 'strength')),
+        language_code TEXT,
+        position INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        CHECK ((kind = 'personal') = (language_code IS NULL))
+      )`,
+      'CREATE INDEX memory_language ON memory (language_code, kind, position)',
+    ],
+  },
 ];
 
 export async function currentVersion(db: Database): Promise<number> {

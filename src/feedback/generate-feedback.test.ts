@@ -1,5 +1,6 @@
 import { findLanguage } from '../config/languages';
-import { SAMPLE_FEEDBACK } from './fixtures';
+import { EMPTY_MEMORY } from '../memory/memory';
+import { SAMPLE_FEEDBACK, SAMPLE_RESPONSE } from './fixtures';
 import {
   FeedbackError,
   generateFeedback,
@@ -19,6 +20,7 @@ const input = {
     { speaker: 'ai', text: 'How was your weekend?' },
     { speaker: 'user', text: 'Yesterday I go to the beach' },
   ] as const,
+  memory: EMPTY_MEMORY,
 };
 
 function model(...responses: (string | Error)[]) {
@@ -31,11 +33,11 @@ function model(...responses: (string | Error)[]) {
 }
 
 describe('generateFeedback', () => {
-  it('devolve o feedback validado', async () => {
-    const fake = model(JSON.stringify(SAMPLE_FEEDBACK));
+  it('devolve o feedback e a memória validados', async () => {
+    const fake = model(JSON.stringify(SAMPLE_RESPONSE));
     expect(
       await generateFeedback(fake, 'key', { ...input, transcript: [...input.transcript] }),
-    ).toEqual(SAMPLE_FEEDBACK);
+    ).toEqual(SAMPLE_RESPONSE);
     expect(fake.generateJson).toHaveBeenCalledWith(
       'key',
       expect.stringContaining('USER: Yesterday'),
@@ -44,10 +46,11 @@ describe('generateFeedback', () => {
   });
 
   it('tenta de novo quando a resposta não valida no schema', async () => {
-    const fake = model('{"summary": ""}', JSON.stringify(SAMPLE_FEEDBACK));
+    // Feedback sem a memória também não valida.
+    const fake = model(JSON.stringify(SAMPLE_FEEDBACK), JSON.stringify(SAMPLE_RESPONSE));
     await expect(
       generateFeedback(fake, 'key', { ...input, transcript: [...input.transcript] }),
-    ).resolves.toEqual(SAMPLE_FEEDBACK);
+    ).resolves.toEqual(SAMPLE_RESPONSE);
     expect(fake.generateJson).toHaveBeenCalledTimes(2);
   });
 
@@ -67,6 +70,17 @@ describe('buildFeedbackPrompt', () => {
     expect(prompt).toContain('português do Brasil');
     expect(prompt).toContain('AI: How was your weekend?');
   });
+
+  it('manda a memória atual para ser mesclada', () => {
+    const prompt = buildFeedbackPrompt({
+      ...input,
+      transcript: [...input.transcript],
+      memory: { personal: ['Tem um gato chamado Mingau'], mistakes: [], strengths: [] },
+    });
+    expect(prompt).toContain('Tem um gato chamado Mingau');
+    expect(prompt).toContain('junte itens repetidos');
+    expect(prompt).toContain('Não guarde dados sensíveis');
+  });
 });
 
 describe('feedbackJsonSchema', () => {
@@ -75,6 +89,7 @@ describe('feedbackJsonSchema', () => {
     expect(schema.type).toBe('object');
     expect(schema).not.toHaveProperty('$schema');
     expect(JSON.stringify(schema)).toContain('"tense"');
+    expect(schema.required).toContain('memory');
   });
 });
 

@@ -226,3 +226,36 @@ textarea.input {
   margin: 4px 0 0;
   line-height: 1.5;
 }
+
+.memory__group {
+  margin-top: 16px;
+}
+
+.memory__title {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.memory__item {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.memory__content {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.memory__remove {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}

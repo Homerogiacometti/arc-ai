@@ -233,16 +233,16 @@ docs/
 
 ## 8. Modelo de dados
 
-| Tabela             | Campos principais                                                                     |
-| ------------------ | ------------------------------------------------------------------------------------- |
-| `schema_version`   | versão atual das migrations                                                           |
-| `learner_profile`  | idioma, nível autodeclarado, interesses, objetivos                                    |
-| `memory`           | tipo (pessoal, erro, acerto), idioma (nulo para pessoal), conteúdo, atualizado em     |
-| `sessions`         | idioma, modo de resposta, início, fim, duração, tokens, status do feedback, reportada |
-| `transcript_turns` | sessão, quem falou, texto, ordem                                                      |
-| `feedbacks`        | sessão, JSON validado                                                                 |
-| `practice_plan`    | dias por semana, minutos por dia, vigência                                            |
-| `settings`         | voz, nível de pausa, idioma atual, modo de resposta                                   |
+| Tabela             | Campos principais                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| `schema_version`   | versão atual das migrations                                                                |
+| `learner_profile`  | idioma, nível autodeclarado, interesses, objetivos                                         |
+| `memory`           | tipo (pessoal, erro, acerto), idioma (nulo para pessoal), posição, conteúdo, atualizado em |
+| `sessions`         | idioma, modo de resposta, início, fim, duração, tokens, status do feedback, reportada      |
+| `transcript_turns` | sessão, quem falou, texto, ordem                                                           |
+| `feedbacks`        | sessão, JSON validado                                                                      |
+| `practice_plan`    | dias por semana, minutos por dia, vigência                                                 |
+| `settings`         | voz, nível de pausa, idioma atual, modo de resposta                                        |
 
 A V2 adicionará suas tabelas por migration, sem alterar as existentes.
 
