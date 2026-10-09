@@ -2,7 +2,8 @@ import { findLanguage } from '../../config/languages';
 import type { SessionSnapshot } from '../../conversation/session-controller';
 import { useSettingsStore } from '../../store/settings';
 import { Logo } from '../Logo';
-import { formatDuration } from './format';
+import { formatDuration } from '../format';
+import { useNavigation } from '../navigation';
 import { useConversation } from './use-conversation';
 import './Home.css';
 
@@ -33,6 +34,7 @@ export function Home() {
   const languageCode = useSettingsStore((state) => state.languageCode);
   const languageLabel = findLanguage(languageCode)?.label ?? languageCode;
   const { snapshot, running, elapsedMs, result, start, stop } = useConversation();
+  const navigate = useNavigation((state) => state.navigate);
   const statusText = STATUS_TEXT[snapshot.status];
   const failure = snapshot.status === 'ended' ? endMessage(snapshot) : null;
 
@@ -42,6 +44,18 @@ export function Home() {
         <span className="home__language" aria-label="Idioma atual">
           {languageLabel}
         </span>
+        {!running && (
+          <button
+            className="home__menu"
+            type="button"
+            aria-label="Menu"
+            onClick={() => {
+              navigate({ name: 'menu' });
+            }}
+          >
+            <span aria-hidden="true">☰</span>
+          </button>
+        )}
       </header>
 
       <section className="home__center">

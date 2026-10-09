@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useServices } from '../app/services-context';
 import { startPhase, type Phase } from '../app/start-phase';
 import { useSettingsStore } from '../store/settings';
-import { Home } from './home/Home';
 import { ApiKeyStep } from './onboarding/ApiKeyStep';
 import { ProfileStep } from './onboarding/ProfileStep';
+import { Screens } from './Screens';
 import { Splash } from './Splash';
 
 export function AppFlow() {
@@ -52,6 +52,6 @@ export function AppFlow() {
         />
       );
     case 'home':
-      return <Home />;
+      return <Screens />;
   }
 }

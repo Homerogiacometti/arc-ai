@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import type { Database } from './database';
-import { migrate } from './migrations';
+import { prepareDatabase } from './migrations';
 
 /**
  * Abre o banco e aplica as migrations. No aparelho usa o SQLite nativo; no navegador
@@ -20,6 +20,6 @@ export async function openDatabase(): Promise<Database> {
     const SQL = await initSqlJs({ locateFile: () => wasmUrl });
     db = new SqlJsDatabase(new SQL.Database());
   }
-  await migrate(db);
+  await prepareDatabase(db);
   return db;
 }

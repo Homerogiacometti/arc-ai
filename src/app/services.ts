@@ -1,12 +1,15 @@
 import { Microphone } from '../audio/microphone';
 import { PcmPlayer } from '../audio/player';
 import type { ConversationProvider } from '../conversation/provider';
+import type { JsonModel } from '../feedback/generate-feedback';
+import { GeminiTextModel } from '../feedback/gemini-text-model';
 import type { AudioInput, AudioOutput } from '../conversation/session-controller';
 import type { ApiKeyStore } from '../secure/api-key-store';
 import { createApiKeyStore } from '../secure/create-api-key-store';
 import { validateApiKey, type ApiKeyValidation } from '../secure/validate-api-key';
 import { openDatabase } from '../storage/open-database';
 import { SqlProfileRepository, type ProfileRepository } from '../storage/profile-repository';
+import { SqlSessionRepository, type SessionRepository } from '../storage/session-repository';
 import { SqlSettingsRepository, type SettingsRepository } from '../storage/settings-repository';
 import { createScreen, type Screen } from './screen';
 
@@ -15,6 +18,8 @@ export interface Services {
   apiKeyStore: ApiKeyStore;
   profiles: ProfileRepository;
   settings: SettingsRepository;
+  sessions: SessionRepository;
+  feedbackModel: JsonModel;
   validateApiKey: (apiKey: string) => Promise<ApiKeyValidation>;
   conversation: {
     provider: ConversationProvider;
@@ -30,6 +35,8 @@ export async function createServices(): Promise<Services> {
     apiKeyStore,
     profiles: new SqlProfileRepository(db),
     settings: new SqlSettingsRepository(db),
+    sessions: new SqlSessionRepository(db),
+    feedbackModel: new GeminiTextModel(),
     validateApiKey: (apiKey) => validateApiKey(apiKey),
     conversation: {
       provider: lazyGeminiProvider(),

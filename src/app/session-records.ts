@@ -1,0 +1,89 @@
+import { findLanguage } from '../config/languages';
+import type { LearnerProfile } from '../config/profile';
+import type { Settings } from '../config/settings';
+import type { SessionResult } from '../conversation/session-controller';
+import { generateFeedback, hasUserSpeech } from '../feedback/generate-feedback';
+import { FEEDBACK_PROMPT_VERSION } from '../feedback/prompt';
+import { CONVERSATION_INSTRUCTION_VERSION } from '../prompts/conversation-instruction';
+import type { Services } from './services';
+
+type Deps = Pick<Services, 'sessions' | 'profiles' | 'apiKeyStore' | 'feedbackModel'>;
+
+/**
+ * Salva a sessão encerrada (RF09, RF12). Sessões sem nenhuma fala não são salvas.
+ * Devolve o id, ou null quando não havia nada a guardar.
+ */
+export async function recordSession(
+  { sessions }: Pick<Deps, 'sessions'>,
+  result: SessionResult,
+  settings: Pick<Settings, 'languageCode' | 'responseMode'>,
+): Promise<number | null> {
+  if (result.transcript.length === 0) return null;
+  return sessions.create({
+    languageCode: settings.languageCode,
+    responseMode: settings.responseMode,
+    instructionVersion: CONVERSATION_INSTRUCTION_VERSION,
+    startedAt: result.startedAt,
+    endedAt: result.endedAt,
+    durationMs: result.durationMs,
+    endReason: result.endReason,
+    totalTokens: result.totalTokens,
+    latenciesMs: result.latenciesMs,
+    feedbackStatus: hasUserSpeech(result.transcript) ? 'pending' : 'skipped',
+    transcript: result.transcript,
+  });
+}
+
+/**
+ * Gera e salva o feedback de uma sessão pendente ou que falhou antes (RF10).
+ * Em caso de falha, a sessão fica com feedback "failed" e pode ser gerada depois.
+ */
+export function produceFeedback(deps: Deps, sessionId: number): Promise<void> {
+  // A mesma sessão nunca gera feedback duas vezes ao mesmo tempo.
+  let running = inFlight.get(sessionId);
+  if (!running) {
+    running = runFeedback(deps, sessionId).finally(() => {
+      inFlight.delete(sessionId);
+    });
+    inFlight.set(sessionId, running);
+  }
+  return running;
+}
+
+const inFlight = new Map<number, Promise<void>>();
+
+async function runFeedback(deps: Deps, sessionId: number): Promise<void> {
+  const detail = await deps.sessions.get(sessionId);
+  if (!detail || detail.feedbackStatus === 'ready' || detail.feedbackStatus === 'skipped') return;
+
+  try {
+    const language = findLanguage(detail.languageCode);
+    const apiKey = await deps.apiKeyStore.get();
+    if (!language || !apiKey) throw new Error('Sem idioma ou chave');
+    const profile: LearnerProfile = (await deps.profiles.get(detail.languageCode)) ?? {
+      languageCode: language.code as LearnerProfile['languageCode'],
+      level: 'intermediate',
+      interests: '',
+      goals: '',
+    };
+    const feedback = await generateFeedback(deps.feedbackModel, apiKey, {
+      language,
+      profile,
+      transcript: detail.transcript,
+    });
+    await deps.sessions.saveFeedback(sessionId, feedback, {
+      model: deps.feedbackModel.name,
+      promptVersion: FEEDBACK_PROMPT_VERSION,
+    });
+  } catch (error) {
+    // Diagnóstico (só tipo e mensagem; a chave nunca aparece nesses erros).
+    console.warn('[feedback] falhou:', describeError(error));
+    await deps.sessions.setFeedbackStatus(sessionId, 'failed');
+  }
+}
+
+function describeError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const cause = error.cause === undefined ? '' : ` <- ${describeError(error.cause)}`;
+  return `${error.name}: ${error.message.slice(0, 500)}${cause}`;
+}

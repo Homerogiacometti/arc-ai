@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { recordSession } from '../../app/session-records';
 import { useServices } from '../../app/services-context';
 import { findLanguage } from '../../config/languages';
 import { PAUSE_LEVELS } from '../../config/pause-levels';
@@ -8,7 +9,10 @@ import {
   type StartOptions,
 } from '../../conversation/session-controller';
 import { buildConversationInstruction, OPENING_CUE } from '../../prompts/conversation-instruction';
+import { hasUserSpeech } from '../../feedback/generate-feedback';
+import type { Settings } from '../../config/settings';
 import { useSettingsStore } from '../../store/settings';
+import { useNavigation } from '../navigation';
 
 const RUNNING = new Set(['connecting', 'active', 'paused', 'resuming', 'ending']);
 
@@ -19,6 +23,9 @@ export function useConversation() {
   const [controller] = useState(() => new SessionController(services.conversation));
   const snapshot = useSyncExternalStore(controller.subscribe, () => controller.snapshot);
   const [result, setResult] = useState<SessionResult | null>(null);
+  const navigate = useNavigation((state) => state.navigate);
+  /** Idioma e modo com que a sessão começou (o usuário pode mudá-los depois). */
+  const startedWith = useRef<Pick<Settings, 'languageCode' | 'responseMode'> | null>(null);
   const running = RUNNING.has(snapshot.status);
   const elapsedMs = useElapsed(controller, running);
 
@@ -49,6 +56,7 @@ export function useConversation() {
     const language = findLanguage(languageCode);
     if (!apiKey) throw new Error('Chave de API ausente');
     if (!profile || !language) throw new Error('Perfil do idioma ausente');
+    startedWith.current = { languageCode, responseMode };
     return {
       apiKey,
       systemInstruction: buildConversationInstruction({ language, profile, responseMode }),
@@ -57,10 +65,26 @@ export function useConversation() {
     };
   }, [services, settings]);
 
+  /** Ao encerrar: salva a sessão e abre o feedback automaticamente (RF10). */
+  const onEnded = useCallback(
+    async (ended: SessionResult) => {
+      setResult(ended);
+      if (!startedWith.current) return;
+      try {
+        const id = await recordSession(services, ended, startedWith.current);
+        if (id !== null && hasUserSpeech(ended.transcript)) navigate({ name: 'feedback', id });
+      } catch {
+        // Falha ao salvar não pode travar a home; a mensagem de duração continua visível.
+      }
+    },
+    [services, navigate],
+  );
+
   const start = useCallback(() => {
     setResult(null);
-    void controller.start(loadOptions, setResult);
-  }, [controller, loadOptions]);
+    startedWith.current = null;
+    void controller.start(loadOptions, (ended) => void onEnded(ended));
+  }, [controller, loadOptions, onEnded]);
 
   const stop = useCallback(() => {
     void controller.stop();

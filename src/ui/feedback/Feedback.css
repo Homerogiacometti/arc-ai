@@ -1,0 +1,92 @@
+.feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.feedback__section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feedback__heading {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-yellow);
+}
+
+.feedback__text {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.feedback__bullets {
+  margin: 0;
+  padding-left: 1.2em;
+  line-height: 1.55;
+}
+
+.feedback__bullets li + li {
+  margin-top: 6px;
+}
+
+.feedback__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feedback__level {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-yellow);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.card__tag {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(170 21 27 / 25%);
+  font-size: 0.7rem;
+}
+
+.card__original {
+  margin: 0;
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--color-red);
+}
+
+.card__original--plain {
+  text-decoration: none;
+}
+
+.card__correction {
+  margin: 0;
+  font-weight: 600;
+}
+
+.card__explanation {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+}

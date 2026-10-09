@@ -28,12 +28,54 @@ export const MIGRATIONS: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    // M4: sessões, transcrição e feedback (RF09, RF10, RF12).
+    version: 2,
+    statements: [
+      `CREATE TABLE sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        language_code TEXT NOT NULL,
+        response_mode TEXT NOT NULL,
+        instruction_version INTEGER NOT NULL,
+        started_at TEXT NOT NULL,
+        ended_at TEXT NOT NULL,
+        duration_ms INTEGER NOT NULL,
+        end_reason TEXT NOT NULL,
+        total_tokens INTEGER NOT NULL DEFAULT 0,
+        latencies_ms TEXT NOT NULL DEFAULT '[]',
+        feedback_status TEXT NOT NULL
+          CHECK (feedback_status IN ('pending', 'ready', 'failed', 'skipped')),
+        reported INTEGER NOT NULL DEFAULT 0
+      )`,
+      'CREATE INDEX sessions_started_at ON sessions (started_at)',
+      `CREATE TABLE transcript_turns (
+        session_id INTEGER NOT NULL REFERENCES sessions (id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        speaker TEXT NOT NULL CHECK (speaker IN ('user', 'ai')),
+        text TEXT NOT NULL,
+        PRIMARY KEY (session_id, position)
+      )`,
+      `CREATE TABLE feedbacks (
+        session_id INTEGER PRIMARY KEY REFERENCES sessions (id) ON DELETE CASCADE,
+        data TEXT NOT NULL,
+        model TEXT NOT NULL,
+        prompt_version INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      )`,
+    ],
+  },
 ];
 
 export async function currentVersion(db: Database): Promise<number> {
   await db.run('CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)');
   const [row] = await db.query('SELECT MAX(version) AS version FROM schema_version');
   return typeof row?.version === 'number' ? row.version : 0;
+}
+
+/** Liga as chaves estrangeiras (vale por conexão, fora de transação) e aplica as migrations. */
+export async function prepareDatabase(db: Database): Promise<number> {
+  await db.run('PRAGMA foreign_keys = ON');
+  return migrate(db);
 }
 
 /** Aplica as migrations pendentes. Devolve a versão final. */
