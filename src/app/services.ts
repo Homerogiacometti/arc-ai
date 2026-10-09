@@ -11,6 +11,7 @@ import { validateApiKey, type ApiKeyValidation } from '../secure/validate-api-ke
 import { eraseAllData } from '../storage/erase-all';
 import { SqlMemoryRepository, type MemoryRepository } from '../storage/memory-repository';
 import { openDatabase } from '../storage/open-database';
+import { SqlPlanRepository, type PlanRepository } from '../storage/plan-repository';
 import { SqlProfileRepository, type ProfileRepository } from '../storage/profile-repository';
 import { SqlSessionRepository, type SessionRepository } from '../storage/session-repository';
 import { SqlSettingsRepository, type SettingsRepository } from '../storage/settings-repository';
@@ -23,6 +24,7 @@ export interface Services {
   settings: SettingsRepository;
   sessions: SessionRepository;
   memory: MemoryRepository;
+  plans: PlanRepository;
   /** Modelos do feedback em ordem de preferência: principal e reserva. */
   feedbackModels: readonly JsonModel[];
   /** Espera entre tentativas do feedback; padrão: tempo real. Os testes passam uma instantânea. */
@@ -46,6 +48,7 @@ export async function createServices(): Promise<Services> {
     settings: new SqlSettingsRepository(db),
     sessions: new SqlSessionRepository(db),
     memory: new SqlMemoryRepository(db),
+    plans: new SqlPlanRepository(db),
     feedbackModels: [new GeminiTextModel(MODELS.text), new GeminiTextModel(MODELS.textFallback)],
     validateApiKey: (apiKey) => validateApiKey(apiKey),
     eraseAllData: async () => {

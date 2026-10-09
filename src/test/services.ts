@@ -4,6 +4,7 @@ import { SAMPLE_RESPONSE } from '../feedback/fixtures';
 import type { JsonModel } from '../feedback/generate-feedback';
 import { eraseAllData } from '../storage/erase-all';
 import { SqlMemoryRepository } from '../storage/memory-repository';
+import { SqlPlanRepository } from '../storage/plan-repository';
 import { SqlProfileRepository } from '../storage/profile-repository';
 import { SqlSessionRepository } from '../storage/session-repository';
 import { SqlSettingsRepository } from '../storage/settings-repository';
@@ -46,6 +47,7 @@ export async function createTestServices(options: { apiKey?: string | null } = {
     settings: new SqlSettingsRepository(db),
     sessions: new SqlSessionRepository(db),
     memory: new SqlMemoryRepository(db),
+    plans: new SqlPlanRepository(db),
     feedbackModels: [
       { name: 'fake-model', generateJson },
       { name: 'fake-fallback', generateJson },

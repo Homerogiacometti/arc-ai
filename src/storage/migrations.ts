@@ -85,6 +85,18 @@ export const MIGRATIONS: readonly Migration[] = [
     version: 4,
     statements: ["ALTER TABLE settings ADD COLUMN voice TEXT NOT NULL DEFAULT 'Puck'"],
   },
+  {
+    // M7: cronograma (RF13). Cada edição cria uma vigência; semanas passadas mantêm o plano delas.
+    version: 5,
+    statements: [
+      `CREATE TABLE practice_plan (
+        valid_from TEXT PRIMARY KEY,
+        days_per_week INTEGER NOT NULL CHECK (days_per_week BETWEEN 1 AND 7),
+        minutes_per_day INTEGER NOT NULL CHECK (minutes_per_day BETWEEN 1 AND 240),
+        updated_at TEXT NOT NULL
+      )`,
+    ],
+  },
 ];
 
 export async function currentVersion(db: Database): Promise<number> {

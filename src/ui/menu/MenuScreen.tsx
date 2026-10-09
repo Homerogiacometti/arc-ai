@@ -1,10 +1,11 @@
 import { useNavigation, type Route } from '../navigation';
 import { ScreenHeader } from '../ScreenHeader';
 
-/** Itens do menu (SPEC §9). O cronograma chega no M7. */
+/** Itens do menu (SPEC §9). */
 const ITEMS: { label: string; route: Route }[] = [
   { label: 'Idioma', route: { name: 'language' } },
   { label: 'Modo de resposta', route: { name: 'response-mode' } },
+  { label: 'Cronograma e progresso', route: { name: 'plan' } },
   { label: 'Histórico', route: { name: 'history' } },
   { label: 'Memória', route: { name: 'memory' } },
   { label: 'Configurações', route: { name: 'settings' } },

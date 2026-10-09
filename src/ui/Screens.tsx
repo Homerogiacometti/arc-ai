@@ -8,6 +8,7 @@ import { MemoryScreen } from './memory/MemoryScreen';
 import { MenuScreen } from './menu/MenuScreen';
 import { useHistorySync, useNavigation } from './navigation';
 import { ApiKeyStep } from './onboarding/ApiKeyStep';
+import { PlanScreen } from './plan/PlanScreen';
 import { ResponseModeScreen } from './response-mode/ResponseModeScreen';
 import { SettingsScreen } from './settings/SettingsScreen';
 
@@ -32,6 +33,8 @@ export function Screens() {
       return <ProfileScreen key={route.languageCode} languageCode={route.languageCode} />;
     case 'response-mode':
       return <ResponseModeScreen />;
+    case 'plan':
+      return <PlanScreen />;
     case 'settings':
       return <SettingsScreen />;
     case 'api-key':

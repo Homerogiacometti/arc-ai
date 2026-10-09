@@ -11,6 +11,7 @@ export type Route =
   | { name: 'profile'; languageCode: LanguageCode }
   | { name: 'response-mode' }
   | { name: 'settings' }
+  | { name: 'plan' }
   | { name: 'api-key' }
   | { name: 'session'; id: number }
   | { name: 'feedback'; id: number };
