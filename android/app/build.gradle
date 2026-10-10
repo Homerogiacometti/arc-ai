@@ -1,5 +1,15 @@
 apply plugin: 'com.android.application'
 
+// Chave de upload da Play Store: fica fora do repositório. O caminho do arquivo de
+// propriedades vem de ARC_AI_KEYSTORE_PROPERTIES ou do padrão em ~/.arc-ai-keys. Sem ele
+// (ex.: no CI), o build de release sai sem assinatura.
+def keystorePropertiesFile = file(System.getenv('ARC_AI_KEYSTORE_PROPERTIES') ?:
+        "${System.getProperty('user.home')}/.arc-ai-keys/keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
     namespace = "co.arctechnologies.arcai"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +17,9 @@ android {
         applicationId "co.arctechnologies.arcai"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        // Subir versionCode a cada envio para a Play Store.
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +27,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (keystoreProperties['storeFile']) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            if (keystoreProperties['storeFile']) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
