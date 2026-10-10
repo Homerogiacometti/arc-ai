@@ -93,4 +93,46 @@ describe('SqlSessionRepository', () => {
     );
     expect(await repository.get(id)).toMatchObject({ feedbackStatus: 'failed', feedback: null });
   });
+
+  it('limita a lista às mais recentes', async () => {
+    const repository = new SqlSessionRepository(await createTestDatabase());
+    for (let day = 1; day <= 4; day++) {
+      await repository.create(session({ startedAt: new Date(2026, 9, day, 10) }));
+    }
+    const list = await repository.list({ limit: 2 });
+    expect(list.map((item) => item.startedAt.getDate())).toEqual([4, 3]);
+    expect(await repository.list()).toHaveLength(4);
+  });
+
+  it('poda a transcrição das antigas com feedback pronto, mantendo as pendentes', async () => {
+    const repository = new SqlSessionRepository(await createTestDatabase());
+    const ready = await repository.create(session({ startedAt: new Date(2026, 9, 1, 10) }));
+    await repository.saveFeedback(ready, SAMPLE_FEEDBACK, { model: 'm', promptVersion: 3 });
+    const pending = await repository.create(session({ startedAt: new Date(2026, 9, 2, 10) }));
+    const recent = await repository.create(session({ startedAt: new Date(2026, 9, 3, 10) }));
+    await repository.saveFeedback(recent, SAMPLE_FEEDBACK, { model: 'm', promptVersion: 3 });
+
+    await repository.pruneTranscripts(1);
+
+    expect((await repository.get(ready))?.transcript).toEqual([]);
+    expect((await repository.get(ready))?.feedback).toEqual(SAMPLE_FEEDBACK);
+    expect((await repository.get(ready))?.durationMs).toBe(290_000);
+    expect((await repository.get(pending))?.transcript).toHaveLength(2);
+    expect((await repository.get(recent))?.transcript).toHaveLength(2);
+  });
+
+  it('lista os feedbacks de um idioma em ordem cronológica', async () => {
+    const repository = new SqlSessionRepository(await createTestDatabase());
+    const second = await repository.create(session({ startedAt: new Date(2026, 9, 2, 10) }));
+    const first = await repository.create(session({ startedAt: new Date(2026, 9, 1, 10) }));
+    const spanish = await repository.create(session({ languageCode: 'es-ES' }));
+    await repository.create(session({ startedAt: new Date(2026, 9, 3, 10) })); // sem feedback
+    for (const id of [first, second, spanish]) {
+      await repository.saveFeedback(id, SAMPLE_FEEDBACK, { model: 'm', promptVersion: 3 });
+    }
+
+    const list = await repository.listFeedbacks('en-US');
+    expect(list.map((item) => item.sessionId)).toEqual([first, second]);
+    expect(list[0]?.feedback).toEqual(SAMPLE_FEEDBACK);
+  });
 });

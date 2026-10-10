@@ -11,8 +11,6 @@ async function setup() {
   await testServices.services.profiles.save({
     languageCode: 'en-US',
     level: 'intermediate',
-    interests: 'música',
-    goals: 'viajar',
   });
   useSettingsStore.getState().replace(DEFAULT_SETTINGS);
   render(<App loadServices={() => Promise.resolve(testServices.services)} />);
@@ -30,65 +28,10 @@ async function startConversation(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByRole('timer');
 }
 
-describe('Idioma', () => {
-  it('idioma novo pede o nível, traz os interesses do atual e vira o idioma atual', async () => {
+describe('Configurações', () => {
+  it('modo de resposta vale a partir da próxima conversa', async () => {
     const { user, services, provider } = await setup();
-    await openMenu(user, 'Idioma');
-
-    await user.click(await screen.findByLabelText(/^Espanhol/));
-    expect(await screen.findByRole('heading', { name: 'Perfil · Espanhol' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Interesses (opcional)')).toHaveValue('música');
-    const submit = screen.getByRole('button', { name: 'Praticar Espanhol' });
-    expect(submit).toBeDisabled();
-    await user.click(screen.getByLabelText('Iniciante'));
-    await user.click(submit);
-
-    expect(await screen.findByLabelText('Idioma atual')).toHaveTextContent('Espanhol');
-    expect(await services.profiles.get('es-ES')).toMatchObject({
-      level: 'beginner',
-      interests: 'música',
-      goals: 'viajar',
-    });
-    await startConversation(user);
-    expect(provider.current.options.systemInstruction).toContain('Speak only Español');
-  });
-
-  it('idioma que já tem perfil troca na hora', async () => {
-    const { user, services } = await setup();
-    await services.profiles.save({
-      languageCode: 'fr-FR',
-      level: 'advanced',
-      interests: '',
-      goals: '',
-    });
-    await openMenu(user, 'Idioma');
-
-    const french = await screen.findByLabelText(/^Francês/);
-    expect(french.closest('label')).toHaveTextContent('Avançado');
-    await user.click(french);
-    expect(french).toBeChecked();
-    expect((await services.settings.get()).languageCode).toBe('fr-FR');
-  });
-
-  it('edita o nível do idioma atual', async () => {
-    const { user, services } = await setup();
-    await openMenu(user, 'Idioma');
-    await user.click(
-      await screen.findByRole('button', { name: 'Editar nível e interesses (Inglês)' }),
-    );
-    expect(await screen.findByLabelText('Intermediário')).toBeChecked();
-    await user.click(screen.getByLabelText('Avançado'));
-    await user.click(screen.getByRole('button', { name: 'Salvar' }));
-
-    expect(await screen.findByRole('heading', { name: 'Idioma' })).toBeInTheDocument();
-    expect((await services.profiles.get('en-US'))?.level).toBe('advanced');
-  });
-});
-
-describe('Modo de resposta', () => {
-  it('vale a partir da próxima conversa', async () => {
-    const { user, services, provider } = await setup();
-    await openMenu(user, 'Modo de resposta');
+    await openMenu(user, 'Configurações');
     expect(await screen.findByText(/a IA fala mais e você fala menos/)).toBeInTheDocument();
     expect(screen.getByLabelText(/^Equilibrada/)).toBeChecked();
 
@@ -100,9 +43,29 @@ describe('Modo de resposta', () => {
     await startConversation(user);
     expect(provider.current.options.systemInstruction).toContain('one or two sentences');
   });
-});
 
-describe('Configurações', () => {
+  it('aparência troca o tema na hora e fica salva', async () => {
+    const { user, services } = await setup();
+    await openMenu(user, 'Configurações');
+    expect(await screen.findByLabelText('Escuro')).toBeChecked();
+
+    await user.click(screen.getByLabelText('Claro'));
+    expect((await services.settings.get()).theme).toBe('light');
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem('arc-theme')).toBe('light');
+
+    await user.click(screen.getByLabelText('Escuro'));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+  });
+
+  it('não tem mais a seção de memória', async () => {
+    const { user } = await setup();
+    await openMenu(user, 'Configurações');
+    await screen.findByRole('heading', { name: 'Configurações' });
+    expect(screen.queryByRole('button', { name: 'Ver memória' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Apagar toda a memória' })).not.toBeInTheDocument();
+  });
+
   it('voz e tolerância a pausas vão para a próxima conversa', async () => {
     const { user, services, provider } = await setup();
     await openMenu(user, 'Configurações');
@@ -118,25 +81,6 @@ describe('Configurações', () => {
       voiceName: 'Kore',
       silenceDurationMs: 2000,
     });
-  });
-
-  it('apagar a memória pede confirmação', async () => {
-    const { user, services } = await setup();
-    await services.memory.replace('en-US', {
-      personal: ['Mora em Recife'],
-      mistakes: [],
-      strengths: [],
-    });
-    await openMenu(user, 'Configurações');
-
-    await user.click(await screen.findByRole('button', { name: 'Apagar toda a memória' }));
-    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
-    expect(await services.memory.list()).toHaveLength(1);
-
-    await user.click(screen.getByRole('button', { name: 'Apagar toda a memória' }));
-    await user.click(screen.getByRole('button', { name: 'Apagar memória' }));
-    expect(await screen.findByRole('status')).toHaveTextContent('Memória apagada.');
-    expect(await services.memory.list()).toEqual([]);
   });
 
   it('troca a chave validando antes de salvar', async () => {

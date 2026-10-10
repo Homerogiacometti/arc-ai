@@ -10,6 +10,10 @@ import { createApiKeyStore } from '../secure/create-api-key-store';
 import { validateApiKey, type ApiKeyValidation } from '../secure/validate-api-key';
 import { exportBackup, importBackup, type Backup } from '../storage/backup';
 import { eraseAllData } from '../storage/erase-all';
+import {
+  SqlLearnerInfoRepository,
+  type LearnerInfoRepository,
+} from '../storage/learner-info-repository';
 import { SqlMemoryRepository, type MemoryRepository } from '../storage/memory-repository';
 import { openDatabase } from '../storage/open-database';
 import { SqlPlanRepository, type PlanRepository } from '../storage/plan-repository';
@@ -23,6 +27,7 @@ import { createScreen, type Screen } from './screen';
 export interface Services {
   apiKeyStore: ApiKeyStore;
   profiles: ProfileRepository;
+  learnerInfo: LearnerInfoRepository;
   settings: SettingsRepository;
   sessions: SessionRepository;
   memory: MemoryRepository;
@@ -50,6 +55,7 @@ export async function createServices(): Promise<Services> {
   return {
     apiKeyStore,
     profiles: new SqlProfileRepository(db),
+    learnerInfo: new SqlLearnerInfoRepository(db),
     settings: new SqlSettingsRepository(db),
     sessions: new SqlSessionRepository(db),
     memory: new SqlMemoryRepository(db),

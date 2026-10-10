@@ -1,6 +1,7 @@
 import { SAMPLE_FEEDBACK } from '../feedback/fixtures';
 import { BackupError, describeBackup, exportBackup, importBackup, parseBackup } from './backup';
 import type { Database } from './database';
+import { SqlLearnerInfoRepository } from './learner-info-repository';
 import { SqlMemoryRepository } from './memory-repository';
 import { MIGRATIONS } from './migrations';
 import { SqlPlanRepository } from './plan-repository';
@@ -14,9 +15,8 @@ async function fill(db: Database) {
   await new SqlProfileRepository(db).save({
     languageCode: 'es-ES',
     level: 'beginner',
-    interests: 'fútbol',
-    goals: '',
   });
+  await new SqlLearnerInfoRepository(db).save({ interests: 'fútbol', goals: '' });
   await new SqlMemoryRepository(db).replace('es-ES', {
     personal: ['Mora em Recife'],
     mistakes: ['Confunde ser e estar'],
@@ -50,6 +50,7 @@ async function snapshot(db: Database) {
   return {
     settings: await new SqlSettingsRepository(db).get(),
     profiles: await new SqlProfileRepository(db).list(),
+    info: await new SqlLearnerInfoRepository(db).get(),
     memory: await new SqlMemoryRepository(db).forLanguage('es-ES'),
     plans: await new SqlPlanRepository(db).list(),
     session: first ? await sessions.get(first.id) : null,
@@ -146,6 +147,24 @@ describe('backup', () => {
     expect(await new SqlSettingsRepository(db).get()).toMatchObject({
       languageCode: 'es-ES',
       voice: 'Puck',
+    });
+  });
+
+  it('backup anterior aos interesses gerais traz os interesses do perfil do idioma atual', async () => {
+    const db = await createTestDatabase();
+    await fill(db);
+    const backup = await exportBackup(db);
+    const tables = Object.fromEntries(
+      Object.entries(backup.tables).filter(([table]) => table !== 'learner_info'),
+    );
+    tables.learner_profile = (tables.learner_profile ?? []).map((row) => ({
+      ...row,
+      interests: 'tapas',
+    }));
+    await importBackup(db, { ...backup, schemaVersion: 5, tables });
+    expect(await new SqlLearnerInfoRepository(db).get()).toEqual({
+      interests: 'tapas',
+      goals: '',
     });
   });
 });

@@ -14,8 +14,6 @@ describe('eraseAllData', () => {
     await new SqlProfileRepository(db).save({
       languageCode: 'fr-FR',
       level: 'beginner',
-      interests: '',
-      goals: '',
     });
     await new SqlMemoryRepository(db).replace('fr-FR', {
       personal: ['Mora em Curitiba'],

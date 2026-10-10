@@ -111,7 +111,7 @@ O tempo de silêncio antes de a IA responder é ajustável em três níveis (cur
 
 ### RF06 – Modo de resposta
 
-Escolhido no menu, aplicado pela instrução de sistema, vale a partir da próxima sessão.
+Escolhido nas Configurações, aplicado pela instrução de sistema, vale a partir da próxima sessão.
 
 | Modo        | Comportamento da IA          | Consumo de tokens      |
 | ----------- | ---------------------------- | ---------------------- |
@@ -171,13 +171,21 @@ Limites: 15 itens pessoais (compartilhados), 10 erros e 10 acertos por idioma. O
 
 ### RF12 – Histórico
 
-Lista de sessões com data, idioma, modo, duração, transcrição e feedback.
+Lista das 10 sessões mais recentes com data, idioma, modo, duração, transcrição e feedback. Nas mais antigas, a transcrição é apagada (exceto se o feedback ainda estiver pendente); duração e feedback continuam guardados para o plano de estudo e a Avaliação.
 
-### RF13 – Cronograma
+### RF12a – Avaliação (M9.1)
+
+Calculada a partir dos feedbacks salvos de cada idioma, sem tabela própria:
+
+- **Nota da conversa:** índice CEFR (A1 = 0 … C2 = 5) mais o progresso dentro do nível (0–100) que o feedback estima. Feedback sem progresso conta como 50.
+- **Nível atual:** média das últimas 5 notas; a barra mostra o caminho até o próximo nível e a tela avisa quando a média sobe de degrau. Gráfico com as últimas 20 notas e a média móvel.
+- **Pontos fortes e fracos:** cada feedback avalia de 2 a 6 habilidades de uma lista fixa (`src/config/skills.ts`) como forte (+1) ou fraca (−1). O score de cada habilidade é multiplicado por 0,85 a cada conversa e soma a evidência nova; ≥ 1,5 é ponto forte, ≤ −1,5 é ponto fraco, entre os dois é "em desenvolvimento". Setas comparam com o score de 5 conversas atrás. Feedbacks antigos sem habilidades usam as categorias dos erros como evidência fraca.
+
+### RF13 – Plano de estudo
 
 - O usuário define dias por semana e minutos por dia; o plano é editável.
 - A semana atual mostra os dias marcados automaticamente quando a meta é cumprida.
-- Evolução: semanas cumpridas, minutos por semana, sequência de semanas na meta.
+- Constância: semanas cumpridas, minutos por semana, sequência de semanas na meta.
 - Regra de check: o dia conta como feito quando a soma das conversas do dia atinge os minutos planejados; abaixo disso, parcial.
 
 ### RF14 – Backup
@@ -236,13 +244,14 @@ docs/
 | Tabela             | Campos principais                                                                          |
 | ------------------ | ------------------------------------------------------------------------------------------ |
 | `schema_version`   | versão atual das migrations                                                                |
-| `learner_profile`  | idioma, nível autodeclarado, interesses, objetivos                                         |
+| `learner_profile`  | idioma, nível autodeclarado (interesses e objetivos antigos, sem uso desde o M9.1)         |
+| `learner_info`     | interesses e objetivos, comuns a todos os idiomas                                          |
 | `memory`           | tipo (pessoal, erro, acerto), idioma (nulo para pessoal), posição, conteúdo, atualizado em |
 | `sessions`         | idioma, modo de resposta, início, fim, duração, tokens, status do feedback, reportada      |
 | `transcript_turns` | sessão, quem falou, texto, ordem                                                           |
 | `feedbacks`        | sessão, JSON validado                                                                      |
 | `practice_plan`    | dias por semana, minutos por dia, vigência                                                 |
-| `settings`         | voz, nível de pausa, idioma atual, modo de resposta                                        |
+| `settings`         | voz, nível de pausa, idioma atual, modo de resposta, tema                                  |
 
 A V2 adicionará suas tabelas por migration, sem alterar as existentes.
 
@@ -250,8 +259,8 @@ A V2 adicionará suas tabelas por migration, sem alterar as existentes.
 
 ## 9. Telas
 
-- **Home (ultra simples):** botão único iniciar/parar, cronômetro durante a sessão, indicador sutil de quem está falando, menu no canto superior e etiqueta discreta com o idioma atual ao lado do menu.
-- **Menu:** Idioma · Modo de resposta · Cronograma e progresso · Histórico · Memória · Configurações.
+- **Home (ultra simples):** botão único iniciar/parar, cronômetro durante a sessão, indicador sutil de quem está falando, menu no canto superior e as bandeiras dos idiomas que o usuário aprende (a do atual em destaque; tocar em outra troca o idioma).
+- **Menu:** Perfil e memória (idiomas com nível, interesses e objetivos, memória) · Plano de estudo · Avaliação · Histórico · Configurações (chave, voz, modo de resposta, pausas, aparência clara/escura, backup, apagar dados).
 - **Feedback:** aparece automaticamente ao parar; ao fechar, volta à home.
 - **Onboarding:** chave de API e perfil inicial.
 - **Histórico** e **Detalhe da sessão**.

@@ -1,4 +1,5 @@
 import { findLanguage } from '../config/languages';
+import { HISTORY } from '../config/limits';
 import type { LearnerProfile } from '../config/profile';
 import type { Settings } from '../config/settings';
 import type { SessionResult } from '../conversation/session-controller';
@@ -26,7 +27,7 @@ export async function recordSession(
   settings: Pick<Settings, 'languageCode' | 'responseMode'>,
 ): Promise<number | null> {
   if (result.transcript.length === 0) return null;
-  return sessions.create({
+  const id = await sessions.create({
     languageCode: settings.languageCode,
     responseMode: settings.responseMode,
     instructionVersion: CONVERSATION_INSTRUCTION_VERSION,
@@ -39,6 +40,17 @@ export async function recordSession(
     feedbackStatus: hasUserSpeech(result.transcript) ? 'pending' : 'skipped',
     transcript: result.transcript,
   });
+  await pruneTranscripts(sessions);
+  return id;
+}
+
+/** Só as últimas conversas do Histórico guardam a transcrição; falhar aqui não é grave. */
+async function pruneTranscripts(sessions: Deps['sessions']): Promise<void> {
+  try {
+    await sessions.pruneTranscripts(HISTORY.visibleSessions);
+  } catch (error) {
+    console.warn('[histórico] falhou ao podar transcrições:', describeError(error));
+  }
 }
 
 /**
@@ -74,8 +86,6 @@ async function runFeedback(deps: Deps, sessionId: number): Promise<FeedbackFailu
     const profile: LearnerProfile = (await deps.profiles.get(detail.languageCode)) ?? {
       languageCode: language.code as LearnerProfile['languageCode'],
       level: 'intermediate',
-      interests: '',
-      goals: '',
     };
     const { response, model } = await generateFeedback(
       deps.feedbackModels,
@@ -93,7 +103,15 @@ async function runFeedback(deps: Deps, sessionId: number): Promise<FeedbackFailu
       model,
       promptVersion: FEEDBACK_PROMPT_VERSION,
     });
+    console.info(
+      '[feedback] nível',
+      feedback.level.cefr,
+      feedback.level.progress,
+      'habilidades',
+      JSON.stringify(feedback.skills),
+    );
     await saveMemory(deps, detail.languageCode, memory);
+    await pruneTranscripts(deps.sessions);
     return null;
   } catch (error) {
     // Diagnóstico (só tipo e mensagem; a chave nunca aparece nesses erros).

@@ -12,7 +12,7 @@ interface Loaded {
   progress: Progress;
 }
 
-/** RF13: plano semanal editável, semana atual e evolução. */
+/** RF13: plano de estudo semanal editável, semana atual e constância. */
 export function PlanScreen() {
   const { plans, sessions } = useServices();
   const [data, setData] = useState<Loaded | null>(null);
@@ -43,7 +43,7 @@ export function PlanScreen() {
 
   return (
     <main className="screen">
-      <ScreenHeader title="Cronograma e progresso" />
+      <ScreenHeader title="Plano de estudo" />
       {data === null && <p className="screen__text">Carregando…</p>}
 
       {data && !goal && (
@@ -94,7 +94,7 @@ export function PlanScreen() {
 
           <section className="section" aria-labelledby="plan-evolution">
             <h2 className="section__title" id="plan-evolution">
-              Evolução
+              Constância
             </h2>
             <div className="plan__tiles">
               <div className="plan__tile">

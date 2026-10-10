@@ -6,6 +6,8 @@ export interface ProfileRepository {
   /** Perfis de todos os idiomas já configurados. */
   list(): Promise<LearnerProfile[]>;
   save(profile: LearnerProfile): Promise<void>;
+  /** Tira o idioma da lista; memória e histórico dele continuam guardados. */
+  remove(languageCode: string): Promise<void>;
 }
 
 export class SqlProfileRepository implements ProfileRepository {
@@ -19,7 +21,7 @@ export class SqlProfileRepository implements ProfileRepository {
 
   async get(languageCode: string): Promise<LearnerProfile | null> {
     const [row] = await this.#db.query(
-      'SELECT language_code, level, interests, goals FROM learner_profile WHERE language_code = ?',
+      'SELECT language_code, level FROM learner_profile WHERE language_code = ?',
       [languageCode],
     );
     return row ? fromRow(row) : null;
@@ -27,7 +29,7 @@ export class SqlProfileRepository implements ProfileRepository {
 
   async list(): Promise<LearnerProfile[]> {
     const rows = await this.#db.query(
-      'SELECT language_code, level, interests, goals FROM learner_profile ORDER BY language_code',
+      'SELECT language_code, level FROM learner_profile ORDER BY language_code',
     );
     // Perfil de um idioma que saiu da configuração é ignorado.
     return rows.flatMap((row) => {
@@ -42,15 +44,17 @@ export class SqlProfileRepository implements ProfileRepository {
   async save(profile: LearnerProfile): Promise<void> {
     const valid = learnerProfileSchema.parse(profile);
     await this.#db.run(
-      `INSERT INTO learner_profile (language_code, level, interests, goals, updated_at)
-       VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO learner_profile (language_code, level, updated_at)
+       VALUES (?, ?, ?)
        ON CONFLICT (language_code) DO UPDATE SET
          level = excluded.level,
-         interests = excluded.interests,
-         goals = excluded.goals,
          updated_at = excluded.updated_at`,
-      [valid.languageCode, valid.level, valid.interests, valid.goals, this.#now().toISOString()],
+      [valid.languageCode, valid.level, this.#now().toISOString()],
     );
+  }
+
+  async remove(languageCode: string): Promise<void> {
+    await this.#db.run('DELETE FROM learner_profile WHERE language_code = ?', [languageCode]);
   }
 }
 
@@ -58,7 +62,5 @@ function fromRow(row: Row): LearnerProfile {
   return learnerProfileSchema.parse({
     languageCode: row.language_code,
     level: row.level,
-    interests: row.interests,
-    goals: row.goals,
   });
 }

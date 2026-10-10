@@ -42,6 +42,13 @@ export interface SessionDetail extends SessionSummary {
   feedback: Feedback | null;
 }
 
+/** Feedback de uma sessão com a data, para a Avaliação. */
+export interface DatedFeedback {
+  sessionId: number;
+  startedAt: Date;
+  feedback: Feedback;
+}
+
 export interface FeedbackMeta {
   model: string;
   promptVersion: number;
@@ -49,12 +56,21 @@ export interface FeedbackMeta {
 
 export interface SessionRepository {
   create(session: NewSession): Promise<number>;
-  list(): Promise<SessionSummary[]>;
+  /** Sessões da mais recente à mais antiga; `limit` corta a lista. */
+  list(options?: { limit?: number }): Promise<SessionSummary[]>;
   get(id: number): Promise<SessionDetail | null>;
   saveFeedback(id: number, feedback: Feedback, meta: FeedbackMeta): Promise<void>;
   setFeedbackStatus(id: number, status: FeedbackStatus): Promise<void>;
   /** RF15: o usuário reportou conteúdo inadequado desta sessão. */
   markReported(id: number): Promise<void>;
+  /** Feedbacks válidos de um idioma, do mais antigo ao mais recente. */
+  listFeedbacks(languageCode: string): Promise<DatedFeedback[]>;
+  /**
+   * Apaga a transcrição das sessões fora das `keep` mais recentes, mantendo duração e
+   * feedback. Sessões com feedback pendente ou que falhou ficam com a transcrição para poder
+   * gerar o feedback depois.
+   */
+  pruneTranscripts(keep: number): Promise<void>;
 }
 
 const SUMMARY_COLUMNS =
@@ -106,9 +122,12 @@ export class SqlSessionRepository implements SessionRepository {
     }
   }
 
-  async list(): Promise<SessionSummary[]> {
+  async list({ limit }: { limit?: number } = {}): Promise<SessionSummary[]> {
     const rows = await this.#db.query(
-      `SELECT ${SUMMARY_COLUMNS} FROM sessions ORDER BY started_at DESC, id DESC`,
+      `SELECT ${SUMMARY_COLUMNS} FROM sessions ORDER BY started_at DESC, id DESC${
+        limit === undefined ? '' : ' LIMIT ?'
+      }`,
+      limit === undefined ? [] : [limit],
     );
     return rows.map(toSummary);
   }
@@ -173,6 +192,33 @@ export class SqlSessionRepository implements SessionRepository {
 
   async markReported(id: number): Promise<void> {
     await this.#db.run('UPDATE sessions SET reported = 1 WHERE id = ?', [id]);
+  }
+
+  async listFeedbacks(languageCode: string): Promise<DatedFeedback[]> {
+    const rows = await this.#db.query(
+      `SELECT s.id, s.started_at, f.data FROM sessions s
+       JOIN feedbacks f ON f.session_id = s.id
+       WHERE s.language_code = ?
+       ORDER BY s.started_at, s.id`,
+      [languageCode],
+    );
+    return rows.flatMap((row) => {
+      const feedback = parseFeedback(row.data);
+      return feedback
+        ? [{ sessionId: Number(row.id), startedAt: new Date(String(row.started_at)), feedback }]
+        : [];
+    });
+  }
+
+  async pruneTranscripts(keep: number): Promise<void> {
+    await this.#db.run(
+      `DELETE FROM transcript_turns WHERE session_id IN (
+         SELECT id FROM sessions
+         WHERE feedback_status IN ('ready', 'skipped')
+           AND id NOT IN (SELECT id FROM sessions ORDER BY started_at DESC, id DESC LIMIT ?)
+       )`,
+      [keep],
+    );
   }
 }
 

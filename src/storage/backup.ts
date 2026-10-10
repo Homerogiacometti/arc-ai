@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Database, Row } from './database';
-import { currentVersion } from './migrations';
+import { currentVersion, SEED_LEARNER_INFO } from './migrations';
 
 /**
  * Backup (RF14): JSON versionado com todas as tabelas do app — perfil, memória, plano,
@@ -93,6 +93,7 @@ export async function importBackup(db: Database, backup: Backup): Promise<void> 
     for (const table of order) {
       for (const row of backup.tables[table] ?? []) await insert(db, table, row);
     }
+    if (!backup.tables.learner_info) await db.run(SEED_LEARNER_INFO);
     await db.run('COMMIT');
   } catch (error) {
     await db.run('ROLLBACK');

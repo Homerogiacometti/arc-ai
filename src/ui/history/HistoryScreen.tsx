@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useServices } from '../../app/services-context';
 import { findLanguage } from '../../config/languages';
+import { HISTORY } from '../../config/limits';
 import type { FeedbackStatus, SessionSummary } from '../../storage/session-repository';
 import { formatDateTime, formatDuration, modeLabel } from '../format';
 import { useNavigation } from '../navigation';
@@ -11,7 +12,7 @@ const STATUS_BADGE: Partial<Record<FeedbackStatus, string>> = {
   failed: 'feedback pendente',
 };
 
-/** RF12: sessões com data, idioma, modo e duração. */
+/** RF12: as últimas sessões, com data, idioma, modo e duração. */
 export function HistoryScreen() {
   const { sessions } = useServices();
   const navigate = useNavigation((state) => state.navigate);
@@ -19,7 +20,7 @@ export function HistoryScreen() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void sessions.list().then((list) => {
+    void sessions.list({ limit: HISTORY.visibleSessions }).then((list) => {
       if (!controller.signal.aborted) setItems(list);
     });
     return () => {
@@ -33,6 +34,9 @@ export function HistoryScreen() {
       {items === null && <p className="screen__text">Carregando…</p>}
       {items?.length === 0 && (
         <p className="screen__text">Nenhuma conversa ainda. Toque em Iniciar na tela principal.</p>
+      )}
+      {items && items.length > 0 && (
+        <p className="screen__text">Suas últimas {HISTORY.visibleSessions} conversas.</p>
       )}
       {items && items.length > 0 && (
         <ul className="list">

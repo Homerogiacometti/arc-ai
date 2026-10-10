@@ -1,17 +1,14 @@
 import { useEffect } from 'react';
 import { create } from 'zustand';
-import type { LanguageCode } from '../config/languages';
 
 export type Route =
   | { name: 'home' }
   | { name: 'menu' }
   | { name: 'history' }
-  | { name: 'memory' }
-  | { name: 'language' }
-  | { name: 'profile'; languageCode: LanguageCode }
-  | { name: 'response-mode' }
+  | { name: 'about' }
   | { name: 'settings' }
   | { name: 'plan' }
+  | { name: 'evaluation' }
   | { name: 'api-key' }
   | { name: 'session'; id: number }
   | { name: 'feedback'; id: number };

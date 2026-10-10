@@ -1,13 +1,13 @@
 .feedback {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: var(--space-xl);
 }
 
 .feedback__section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
 .feedback__heading {
@@ -16,28 +16,28 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-yellow);
+  color: var(--accent-text);
 }
 
 .feedback__text {
   margin: 0;
-  line-height: 1.55;
+  line-height: var(--leading);
 }
 
 .feedback__bullets {
   margin: 0;
   padding-left: 1.2em;
-  line-height: 1.55;
+  line-height: var(--leading);
 }
 
 .feedback__bullets li + li {
-  margin-top: 6px;
+  margin-top: var(--space-s);
 }
 
 .feedback__cards {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-m);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -47,14 +47,14 @@
   margin: 0;
   font-size: 2rem;
   font-weight: 700;
-  color: var(--color-yellow);
+  color: var(--accent-text);
 }
 
 .card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 14px;
+  gap: var(--space-s);
+  padding: var(--space-m);
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
@@ -64,12 +64,13 @@
   align-self: flex-start;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgb(170 21 27 / 25%);
+  background: var(--danger-soft);
   font-size: 0.7rem;
 }
 
 .card__original {
   margin: 0;
+  line-height: 1.5;
   color: var(--muted);
   text-decoration: line-through;
   text-decoration-color: var(--color-red);
@@ -81,12 +82,13 @@
 
 .card__correction {
   margin: 0;
+  line-height: 1.5;
   font-weight: 600;
 }
 
 .card__explanation {
   margin: 0;
   font-size: 0.85rem;
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--muted);
 }

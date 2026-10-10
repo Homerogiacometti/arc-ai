@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { useServices } from '../../app/services-context';
 import { findLanguage } from '../../config/languages';
 import type { MemoryItem } from '../../storage/memory-repository';
-import { ScreenHeader } from '../ScreenHeader';
+import { ConfirmButton } from '../ConfirmButton';
 
 interface Group {
   key: string;
@@ -11,8 +11,9 @@ interface Group {
 }
 
 /** RF11: o usuário vê e apaga o que a IA lembra dele. */
-export function MemoryScreen() {
+export function MemorySection() {
   const { memory } = useServices();
+  const id = useId();
   const [items, setItems] = useState<MemoryItem[] | null>(null);
 
   const load = useCallback(async () => {
@@ -29,14 +30,16 @@ export function MemoryScreen() {
     };
   }, [memory]);
 
-  const remove = async (id: number) => {
-    await memory.remove(id);
+  const remove = async (itemId: number) => {
+    await memory.remove(itemId);
     await load();
   };
 
   return (
-    <main className="screen">
-      <ScreenHeader title="Memória" />
+    <section className="section" aria-labelledby={`${id}-title`}>
+      <h2 className="section__title" id={`${id}-title`}>
+        Memória
+      </h2>
       <p className="screen__text">
         O que a IA lembra de você entre as conversas. Ela é atualizada pelo feedback de cada
         conversa e usada para puxar assunto e criar chances de praticar.
@@ -50,7 +53,7 @@ export function MemoryScreen() {
       {items &&
         groupItems(items).map((group) => (
           <section className="memory__group" key={group.key} aria-label={group.title}>
-            <h2 className="memory__title">{group.title}</h2>
+            <h3 className="memory__title">{group.title}</h3>
             <ul className="list">
               {group.items.map((item) => (
                 <li className="memory__item" key={item.id}>
@@ -68,7 +71,20 @@ export function MemoryScreen() {
             </ul>
           </section>
         ))}
-    </main>
+      {items && items.length > 0 && (
+        <div className="section__actions memory__clear">
+          <ConfirmButton
+            label="Apagar toda a memória"
+            question="Apagar tudo o que a IA lembra de você, em todos os idiomas?"
+            confirmLabel="Apagar memória"
+            onConfirm={async () => {
+              await memory.clear();
+              await load();
+            }}
+          />
+        </div>
+      )}
+    </section>
   );
 }
 

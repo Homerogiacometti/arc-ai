@@ -16,7 +16,7 @@ export class SqlSettingsRepository implements SettingsRepository {
 
   async get(): Promise<Settings> {
     const [row] = await this.#db.query(
-      'SELECT language_code, response_mode, pause_level, voice FROM settings WHERE id = 1',
+      'SELECT language_code, response_mode, pause_level, voice, theme FROM settings WHERE id = 1',
     );
     if (!row) return DEFAULT_SETTINGS;
     // Cada campo salvo que deixou de existir na configuração (ex.: idioma removido) volta ao padrão.
@@ -29,20 +29,22 @@ export class SqlSettingsRepository implements SettingsRepository {
       responseMode: field('responseMode', row.response_mode),
       pauseLevel: field('pauseLevel', row.pause_level),
       voice: field('voice', row.voice),
+      theme: field('theme', row.theme),
     };
   }
 
   async update(changes: Partial<Settings>): Promise<Settings> {
     const next = settingsSchema.parse({ ...(await this.get()), ...changes });
     await this.#db.run(
-      `INSERT INTO settings (id, language_code, response_mode, pause_level, voice)
-       VALUES (1, ?, ?, ?, ?)
+      `INSERT INTO settings (id, language_code, response_mode, pause_level, voice, theme)
+       VALUES (1, ?, ?, ?, ?, ?)
        ON CONFLICT (id) DO UPDATE SET
          language_code = excluded.language_code,
          response_mode = excluded.response_mode,
          pause_level = excluded.pause_level,
-         voice = excluded.voice`,
-      [next.languageCode, next.responseMode, next.pauseLevel, next.voice],
+         voice = excluded.voice,
+         theme = excluded.theme`,
+      [next.languageCode, next.responseMode, next.pauseLevel, next.voice, next.theme],
     );
     return next;
   }

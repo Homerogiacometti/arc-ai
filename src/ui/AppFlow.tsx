@@ -7,6 +7,7 @@ import { ApiKeyStep } from './onboarding/ApiKeyStep';
 import { ProfileStep } from './onboarding/ProfileStep';
 import { Screens } from './Screens';
 import { Splash } from './Splash';
+import { useApplyTheme } from './use-theme';
 
 export function AppFlow() {
   const services = useServices();
@@ -14,6 +15,7 @@ export function AppFlow() {
   const [phase, setPhase] = useState<Phase | null>(null);
   const [hasProfile, setHasProfile] = useState(false);
   const [generation, setGeneration] = useState(0);
+  useApplyTheme(phase !== null);
   const restart = useCallback(() => {
     setPhase(null);
     setGeneration((value) => value + 1);

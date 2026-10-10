@@ -1,15 +1,13 @@
+import { AboutScreen } from './about/AboutScreen';
+import { EvaluationScreen } from './evaluation/EvaluationScreen';
 import { FeedbackScreen } from './feedback/FeedbackScreen';
-import { LanguageScreen } from './language/LanguageScreen';
-import { ProfileScreen } from './language/ProfileScreen';
 import { HistoryScreen } from './history/HistoryScreen';
 import { SessionScreen } from './history/SessionScreen';
 import { Home } from './home/Home';
-import { MemoryScreen } from './memory/MemoryScreen';
 import { MenuScreen } from './menu/MenuScreen';
 import { useHistorySync, useNavigation } from './navigation';
 import { ApiKeyStep } from './onboarding/ApiKeyStep';
 import { PlanScreen } from './plan/PlanScreen';
-import { ResponseModeScreen } from './response-mode/ResponseModeScreen';
 import { SettingsScreen } from './settings/SettingsScreen';
 
 /** Telas do app depois do onboarding. */
@@ -25,16 +23,12 @@ export function Screens() {
       return <MenuScreen />;
     case 'history':
       return <HistoryScreen />;
-    case 'memory':
-      return <MemoryScreen />;
-    case 'language':
-      return <LanguageScreen />;
-    case 'profile':
-      return <ProfileScreen key={route.languageCode} languageCode={route.languageCode} />;
-    case 'response-mode':
-      return <ResponseModeScreen />;
+    case 'about':
+      return <AboutScreen />;
     case 'plan':
       return <PlanScreen />;
+    case 'evaluation':
+      return <EvaluationScreen />;
     case 'settings':
       return <SettingsScreen />;
     case 'api-key':

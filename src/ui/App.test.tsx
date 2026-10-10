@@ -43,9 +43,8 @@ describe('App', () => {
     expect(await services.profiles.get('es-ES')).toEqual({
       languageCode: 'es-ES',
       level: 'advanced',
-      interests: 'música',
-      goals: '',
     });
+    expect(await services.learnerInfo.get()).toEqual({ interests: 'música', goals: '' });
     expect((await services.settings.get()).languageCode).toBe('es-ES');
   });
 
@@ -55,8 +54,6 @@ describe('App', () => {
     await services.profiles.save({
       languageCode: 'fr-FR',
       level: 'beginner',
-      interests: '',
-      goals: '',
     });
 
     render(<App loadServices={() => Promise.resolve(services)} />);

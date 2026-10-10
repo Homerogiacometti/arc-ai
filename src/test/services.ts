@@ -4,6 +4,7 @@ import { SAMPLE_RESPONSE } from '../feedback/fixtures';
 import type { JsonModel } from '../feedback/generate-feedback';
 import { exportBackup, importBackup } from '../storage/backup';
 import { eraseAllData } from '../storage/erase-all';
+import { SqlLearnerInfoRepository } from '../storage/learner-info-repository';
 import { SqlMemoryRepository } from '../storage/memory-repository';
 import { SqlPlanRepository } from '../storage/plan-repository';
 import { SqlProfileRepository } from '../storage/profile-repository';
@@ -49,6 +50,7 @@ export async function createTestServices(options: { apiKey?: string | null } = {
   const services = {
     apiKeyStore,
     profiles: new SqlProfileRepository(db),
+    learnerInfo: new SqlLearnerInfoRepository(db),
     settings: new SqlSettingsRepository(db),
     sessions: new SqlSessionRepository(db),
     memory: new SqlMemoryRepository(db),

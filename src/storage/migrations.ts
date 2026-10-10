@@ -97,7 +97,32 @@ export const MIGRATIONS: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    // M9.1: tema da interface; interesses e objetivos passam a valer para todos os idiomas
+    // (as colunas antigas de learner_profile ficam sem uso).
+    version: 6,
+    statements: [
+      "ALTER TABLE settings ADD COLUMN theme TEXT NOT NULL DEFAULT 'dark'",
+      `CREATE TABLE learner_info (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        interests TEXT NOT NULL DEFAULT '',
+        goals TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL
+      )`,
+      `INSERT INTO learner_info (id, interests, goals, updated_at)
+       SELECT 1, p.interests, p.goals, p.updated_at
+       FROM learner_profile p JOIN settings s ON s.id = 1 AND s.language_code = p.language_code`,
+    ],
+  },
 ];
+
+/**
+ * Preenche learner_info com os interesses do perfil do idioma atual. Usado ao importar um
+ * backup anterior à migration 6, que ainda guardava esses campos por idioma.
+ */
+export const SEED_LEARNER_INFO = `INSERT OR IGNORE INTO learner_info (id, interests, goals, updated_at)
+  SELECT 1, p.interests, p.goals, p.updated_at
+  FROM learner_profile p JOIN settings s ON s.id = 1 AND s.language_code = p.language_code`;
 
 export async function currentVersion(db: Database): Promise<number> {
   await db.run('CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)');

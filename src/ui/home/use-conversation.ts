@@ -54,9 +54,10 @@ export function useConversation() {
 
   const loadOptions = useCallback(async (): Promise<StartOptions> => {
     const { languageCode, responseMode, pauseLevel, voice } = settings;
-    const [apiKey, profile, memory] = await Promise.all([
+    const [apiKey, profile, info, memory] = await Promise.all([
       services.apiKeyStore.get(),
       services.profiles.get(languageCode),
+      services.learnerInfo.get(),
       services.memory.forLanguage(languageCode),
     ]);
     const language = findLanguage(languageCode);
@@ -68,6 +69,7 @@ export function useConversation() {
       systemInstruction: buildConversationInstruction({
         language,
         profile,
+        info,
         responseMode,
         memory,
       }),

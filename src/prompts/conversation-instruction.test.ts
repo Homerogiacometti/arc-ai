@@ -10,7 +10,8 @@ describe('buildConversationInstruction', () => {
   it('inclui idioma, nível, modo, recast e encerramento por voz', () => {
     const text = buildConversationInstruction({
       language: spanish,
-      profile: { languageCode: 'es-ES', level: 'beginner', interests: 'futebol', goals: '' },
+      profile: { languageCode: 'es-ES', level: 'beginner' },
+      info: { interests: 'futebol', goals: '' },
       responseMode: 'quick',
       memory: EMPTY_MEMORY,
     });
@@ -27,7 +28,8 @@ describe('buildConversationInstruction', () => {
   it('inclui a memória e pede para abrir a conversa a partir dela', () => {
     const text = buildConversationInstruction({
       language: spanish,
-      profile: { languageCode: 'es-ES', level: 'intermediate', interests: '', goals: '' },
+      profile: { languageCode: 'es-ES', level: 'intermediate' },
+      info: { interests: '', goals: '' },
       responseMode: 'balanced',
       memory: {
         personal: ['Vai viajar para Madri em dezembro'],
@@ -45,7 +47,8 @@ describe('buildConversationInstruction', () => {
     const item = (index: number) => `item ${String(index)} ${'x'.repeat(120)}`;
     const text = buildConversationInstruction({
       language: spanish,
-      profile: { languageCode: 'es-ES', level: 'intermediate', interests: '', goals: '' },
+      profile: { languageCode: 'es-ES', level: 'intermediate' },
+      info: { interests: '', goals: '' },
       responseMode: 'balanced',
       memory: {
         personal: Array.from({ length: 15 }, (_, index) => item(index)),

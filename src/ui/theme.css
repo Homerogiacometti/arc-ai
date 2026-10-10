@@ -2,7 +2,7 @@
 @import '@fontsource/source-code-pro/600.css';
 @import '@fontsource/source-code-pro/700.css';
 
-/* Identidade visual — SPEC §9.1 */
+/* Identidade visual — SPEC §9.1. Tema escuro é o padrão; o claro vem por data-theme. */
 :root {
   --color-yellow: #f1bf00;
   --color-red: #aa151b;
@@ -11,17 +11,44 @@
 
   --bg: var(--color-black);
   --fg: var(--color-white);
-  --muted: rgb(255 255 255 / 60%);
+  --muted: rgb(255 255 255 / 62%);
   --border: rgb(255 255 255 / 20%);
   --surface: rgb(255 255 255 / 6%);
+  /* Preenchimento (botões) e o texto que vai em cima dele. */
   --accent: var(--color-yellow);
+  --on-accent: var(--color-black);
+  /* Texto e detalhes em destaque: no tema claro, um amarelo mais escuro para ter contraste. */
+  --accent-text: var(--color-yellow);
   --danger: var(--color-red);
+  --danger-text: #e0484e;
+  --danger-soft: rgb(170 21 27 / 22%);
+
+  /* Espaçamentos e entrelinha (M9.1: telas menos apertadas). */
+  --space-xs: 6px;
+  --space-s: 10px;
+  --space-m: 16px;
+  --space-l: 24px;
+  --space-xl: 32px;
+  --leading: 1.65;
 
   --font: 'Source Code Pro', ui-monospace, monospace;
 
   color-scheme: dark;
   font-family: var(--font);
   -webkit-tap-highlight-color: transparent;
+}
+
+:root[data-theme='light'] {
+  --bg: #ffffff;
+  --fg: #111111;
+  --muted: rgb(0 0 0 / 62%);
+  --border: rgb(0 0 0 / 14%);
+  --surface: rgb(0 0 0 / 4%);
+  --accent-text: #8a6d00;
+  --danger-text: var(--color-red);
+  --danger-soft: rgb(170 21 27 / 10%);
+
+  color-scheme: light;
 }
 
 * {
@@ -46,5 +73,5 @@ select {
 }
 
 a {
-  color: var(--accent);
+  color: var(--accent-text);
 }

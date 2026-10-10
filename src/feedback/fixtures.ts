@@ -19,12 +19,22 @@ export const SAMPLE_FEEDBACK: Feedback = {
       explanation: 'Mais natural e expressivo em conversas informais.',
     },
   ],
-  level: { cefr: 'B1', comment: 'Comunica bem ideias do dia a dia, com erros de tempo verbal.' },
+  level: {
+    cefr: 'B1',
+    progress: 40,
+    comment: 'Comunica bem ideias do dia a dia, com erros de tempo verbal.',
+  },
+  skills: [
+    { skill: 'past', evaluation: 'weak' },
+    { skill: 'fluency', evaluation: 'strong' },
+  ],
 };
 
 /** Resposta válida do modelo para testes: o feedback e a memória atualizada. */
 export const SAMPLE_RESPONSE: FeedbackResponse = {
   ...SAMPLE_FEEDBACK,
+  level: { ...SAMPLE_FEEDBACK.level, progress: 40 },
+  skills: SAMPLE_FEEDBACK.skills ?? [],
   memory: {
     personal: ['Foi à praia no fim de semana'],
     mistakes: ['Usa presente no lugar do passado ("I go" por "I went")'],

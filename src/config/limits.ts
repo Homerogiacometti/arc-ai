@@ -23,3 +23,9 @@ export const MEMORY = {
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / MEMORY.charsPerToken);
 }
+
+/** Histórico (RF12). */
+export const HISTORY = {
+  /** Conversas listadas no Histórico; as mais antigas perdem a transcrição. */
+  visibleSessions: 10,
+} as const;

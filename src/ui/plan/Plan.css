@@ -43,12 +43,12 @@
 .week__day--done .week__mark {
   border-color: var(--accent);
   background: var(--accent);
-  color: var(--color-black);
+  color: var(--on-accent);
 }
 
 .week__day--partial .week__mark {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .week__day--today .week__mark {

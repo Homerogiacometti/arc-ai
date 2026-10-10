@@ -7,7 +7,7 @@
 
 .home__bar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   gap: 12px;
   min-height: 48px;
@@ -23,9 +23,30 @@
   cursor: pointer;
 }
 
-.home__language {
-  font-size: 0.8rem;
-  color: var(--muted);
+.flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.flags__flag {
+  padding: 4px 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  opacity: 0.4;
+  cursor: pointer;
+}
+
+.flags__flag--current {
+  border-bottom-color: var(--accent);
+  opacity: 1;
+}
+
+.flags__flag:disabled {
+  cursor: default;
 }
 
 .home__center {
@@ -75,8 +96,8 @@
   margin-top: 16px;
   border: 0;
   border-radius: 50%;
-  background: var(--color-yellow);
-  color: var(--color-black);
+  background: var(--accent);
+  color: var(--on-accent);
   font-size: 1.2rem;
   font-weight: 700;
   cursor: pointer;
@@ -110,5 +131,5 @@
 }
 
 .speaker--user .speaker__dot {
-  background: var(--color-yellow);
+  background: var(--accent-text);
 }

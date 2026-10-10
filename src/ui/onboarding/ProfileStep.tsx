@@ -45,8 +45,9 @@ export function ProfileStep({ onSaved }: ProfileStepProps) {
             </select>
           </div>
         }
-        onSubmit={async (values) => {
-          await services.profiles.save({ languageCode, ...values });
+        onSubmit={async ({ level, interests, goals }) => {
+          await services.profiles.save({ languageCode, level });
+          await services.learnerInfo.save({ interests, goals });
           replaceSettings(await services.settings.update({ languageCode }));
           onSaved();
         }}

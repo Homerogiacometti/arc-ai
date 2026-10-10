@@ -12,8 +12,6 @@ async function openPlan(minutesToday: number[] = []) {
   await services.profiles.save({
     languageCode: 'en-US',
     level: 'intermediate',
-    interests: '',
-    goals: '',
   });
   for (const minutes of minutesToday) {
     await services.sessions.create({
@@ -37,7 +35,7 @@ async function openPlan(minutesToday: number[] = []) {
     </ServicesContext>,
   );
   await user.click(await screen.findByRole('button', { name: 'Menu' }));
-  await user.click(screen.getByRole('button', { name: 'Cronograma e progresso' }));
+  await user.click(screen.getByRole('button', { name: 'Plano de estudo' }));
   return { user, services };
 }
 

@@ -9,14 +9,14 @@ import {
   type JsonModel,
 } from './generate-feedback';
 import { buildFeedbackPrompt } from './prompt';
-import { feedbackJsonSchema } from './schema';
+import { feedbackJsonSchema, feedbackResponseSchema, feedbackSchema } from './schema';
 
 const english = findLanguage('en-US');
 if (!english) throw new Error('en-US ausente');
 
 const input = {
   language: english,
-  profile: { languageCode: 'en-US', level: 'intermediate', interests: '', goals: '' } as const,
+  profile: { languageCode: 'en-US', level: 'intermediate' } as const,
   transcript: [
     { speaker: 'ai', text: 'How was your weekend?' },
     { speaker: 'user', text: 'Yesterday I go to the beach' },
@@ -136,6 +136,12 @@ describe('buildFeedbackPrompt', () => {
     expect(prompt).toContain('AI: How was your weekend?');
   });
 
+  it('pede o progresso dentro do nível e as habilidades da lista fixa', () => {
+    const prompt = buildFeedbackPrompt({ ...input, transcript });
+    expect(prompt).toContain('"level.progress"');
+    expect(prompt).toContain('prepositions (Preposições)');
+  });
+
   it('manda a memória atual para ser mesclada', () => {
     const prompt = buildFeedbackPrompt({
       ...input,
@@ -155,6 +161,16 @@ describe('feedbackJsonSchema', () => {
     expect(schema).not.toHaveProperty('$schema');
     expect(JSON.stringify(schema)).toContain('"tense"');
     expect(schema.required).toContain('memory');
+    expect(schema.required).toContain('skills');
+    expect(JSON.stringify(schema)).toContain('"irregular-verbs"');
+  });
+
+  it('feedback salvo antes do prompt v3 (sem progresso e habilidades) continua válido', () => {
+    const legacy = { ...SAMPLE_FEEDBACK, skills: undefined, level: { cefr: 'B1', comment: 'ok' } };
+    expect(feedbackSchema.safeParse(legacy).success).toBe(true);
+    expect(feedbackResponseSchema.safeParse({ ...legacy, memory: EMPTY_MEMORY }).success).toBe(
+      false,
+    );
   });
 });
 

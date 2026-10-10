@@ -1,5 +1,5 @@
 import type { Language } from '../config/languages';
-import { LEVELS, type LearnerProfile } from '../config/profile';
+import { LEVELS, type LearnerInfo, type LearnerProfile } from '../config/profile';
 import type { ResponseMode } from '../config/response-modes';
 import type { TranscriptTurn } from '../conversation/session-controller';
 import { formatMemoryBlock, type MemoryLists } from '../memory/memory';
@@ -46,6 +46,8 @@ const MODE_GUIDANCE: Record<ResponseMode, string> = {
 export interface InstructionInput {
   language: Language;
   profile: LearnerProfile;
+  /** Interesses e objetivos, comuns a todos os idiomas. */
+  info: LearnerInfo;
   responseMode: ResponseMode;
   /** Memória entre sessões (RF11); transcrições antigas nunca entram aqui. */
   memory: MemoryLists;
@@ -55,13 +57,14 @@ export interface InstructionInput {
 export function buildConversationInstruction({
   language,
   profile,
+  info,
   responseMode,
   memory,
 }: InstructionInput): string {
   const about = [
     `Self-declared level: ${LEVELS[profile.level]} (${profile.level}).`,
-    profile.interests && `Interests: ${profile.interests}`,
-    profile.goals && `Goals: ${profile.goals}`,
+    info.interests && `Interests: ${info.interests}`,
+    info.goals && `Goals: ${info.goals}`,
   ]
     .filter(Boolean)
     .join('\n');

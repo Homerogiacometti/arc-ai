@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SKILL_KEYS } from '../config/skills';
 import { memoryUpdateSchema } from '../memory/memory';
 
 export const MISTAKE_CATEGORIES = {
@@ -15,6 +16,24 @@ export type MistakeCategory = keyof typeof MISTAKE_CATEGORIES;
 export const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 
 const text = z.string().trim().min(1);
+
+const levelProgress = z
+  .number()
+  .int()
+  .min(0)
+  .max(100)
+  .describe(
+    'Quanto o aluno já avançou dentro do nível estimado: 0 = acabou de chegar, 100 = pronto para o próximo.',
+  );
+
+const skills = z
+  .array(
+    z.object({
+      skill: z.enum(SKILL_KEYS),
+      evaluation: z.enum(['strong', 'weak']),
+    }),
+  )
+  .describe('Habilidades com evidência clara nesta conversa: strong = usou bem, weak = errou.');
 
 /** Feedback de fim de sessão (RF10). Textos explicativos em português. */
 export const feedbackSchema = z.object({
@@ -44,9 +63,12 @@ export const feedbackSchema = z.object({
   level: z
     .object({
       cefr: z.enum(CEFR_LEVELS),
+      // Opcionais no que fica salvo: feedbacks anteriores ao prompt v3 não têm.
+      progress: levelProgress.optional(),
       comment: text.describe('Justificativa curta da estimativa, em português.'),
     })
     .describe('Estimativa de nível com base apenas nesta conversa.'),
+  skills: skills.optional(),
 });
 
 export type Feedback = z.infer<typeof feedbackSchema>;
@@ -56,6 +78,9 @@ export type Feedback = z.infer<typeof feedbackSchema>;
  * é salvo junto da sessão; a memória vai para a tabela própria.
  */
 export const feedbackResponseSchema = feedbackSchema.extend({
+  // Na resposta do modelo, nível com progresso e habilidades são obrigatórios.
+  level: feedbackSchema.shape.level.extend({ progress: levelProgress }),
+  skills,
   memory: memoryUpdateSchema.describe(
     'Memória do aluno atualizada com esta conversa: as três listas completas, já mescladas.',
   ),

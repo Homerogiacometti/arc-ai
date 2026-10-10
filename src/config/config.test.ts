@@ -30,6 +30,7 @@ describe('config', () => {
         responseMode: 'quick',
         pauseLevel: 'long',
         voice: 'Kore',
+        theme: 'light',
       }).success,
     ).toBe(true);
     expect(

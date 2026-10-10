@@ -11,9 +11,8 @@ async function setup() {
   await testServices.services.profiles.save({
     languageCode: 'en-US',
     level: 'intermediate',
-    interests: 'música',
-    goals: '',
   });
+  await testServices.services.learnerInfo.save({ interests: 'música', goals: '' });
   useSettingsStore.getState().replace(DEFAULT_SETTINGS);
   render(
     <ServicesContext value={testServices.services}>
@@ -24,6 +23,32 @@ async function setup() {
 }
 
 describe('Home', () => {
+  it('mostra as bandeiras dos idiomas e troca o idioma com um toque', async () => {
+    const user = userEvent.setup();
+    const { services, provider } = await setup();
+    await services.profiles.save({ languageCode: 'es-ES', level: 'beginner' });
+    act(() => {
+      useSettingsStore.getState().replace({ ...DEFAULT_SETTINGS });
+    });
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    await user.click(screen.getByRole('button', { name: '← Voltar' }));
+
+    const english = await screen.findByRole('button', { name: 'Praticar Inglês' });
+    const spanish = await screen.findByRole('button', { name: 'Praticar Espanhol' });
+    expect(english).toHaveAttribute('aria-pressed', 'true');
+    expect(spanish).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(spanish);
+    expect(spanish).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByLabelText('Idioma atual')).toHaveTextContent('Espanhol');
+    expect((await services.settings.get()).languageCode).toBe('es-ES');
+
+    await user.click(screen.getByRole('button', { name: 'Iniciar' }));
+    await screen.findByRole('timer');
+    expect(provider.current.options.systemInstruction).toContain('Speak only Español');
+    expect(screen.getByRole('button', { name: 'Praticar Inglês' })).toBeDisabled();
+  });
+
   it('inicia a conversa com a instrução do perfil, mostra cronômetro e encerra', async () => {
     const user = userEvent.setup();
     const { provider, screen: screenLock } = await setup();

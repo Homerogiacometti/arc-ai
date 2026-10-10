@@ -3,11 +3,10 @@ import { ScreenHeader } from '../ScreenHeader';
 
 /** Itens do menu (SPEC §9). */
 const ITEMS: { label: string; route: Route }[] = [
-  { label: 'Idioma', route: { name: 'language' } },
-  { label: 'Modo de resposta', route: { name: 'response-mode' } },
-  { label: 'Cronograma e progresso', route: { name: 'plan' } },
+  { label: 'Perfil e memória', route: { name: 'about' } },
+  { label: 'Plano de estudo', route: { name: 'plan' } },
+  { label: 'Avaliação', route: { name: 'evaluation' } },
   { label: 'Histórico', route: { name: 'history' } },
-  { label: 'Memória', route: { name: 'memory' } },
   { label: 'Configurações', route: { name: 'settings' } },
 ];
 
