@@ -4,7 +4,9 @@ App Android para praticar conversação por voz em outros idiomas com a **Gemini
 
 Gratuito, sem backend: cada usuário usa a própria chave de API do Gemini, guardada no Keystore do aparelho. Todos os dados ficam no celular.
 
-> Status: **M7 — Cronograma e progresso** concluído. Veja os marcos em [`docs/SPEC.md`](docs/SPEC.md#10-marcos-da-v1).
+> Status: **M10 — Publicação na Play Store** em andamento. Veja os marcos em [`docs/SPEC.md`](docs/SPEC.md#10-marcos-da-v1).
+>
+> Política de privacidade: https://www.arctechnologies.co/arc-ai/privacidade
 
 ## Stack
 
@@ -49,10 +51,7 @@ No navegador, o banco é sql.js em memória (some ao recarregar) e a chave fica 
 2. Gere o APK debug:
 
    ```bash
-   npm run build
-   npx cap sync android
-   cd android
-   ./gradlew assembleDebug      # Windows: gradlew.bat assembleDebug
+   npm run apk
    ```
 
    Saída: `android/app/build/outputs/apk/debug/app-debug.apk`.
@@ -62,6 +61,10 @@ No navegador, o banco é sql.js em memória (some ao recarregar) e a chave fica 
    ```bash
    adb install -r android/app/build/outputs/apk/debug/app-debug.apk
    ```
+
+## Build de release (Play Store)
+
+`npm run aab` gera `android/app/build/outputs/bundle/release/app-release.aab`, assinado com a chave de upload. A chave fica fora do repositório: o Gradle lê `~/.arc-ai-keys/keystore.properties` (ou o caminho em `ARC_AI_KEYSTORE_PROPERTIES`) com `storeFile`, `storePassword`, `keyAlias` e `keyPassword`. Sem esse arquivo, o release sai sem assinatura. Textos e respostas da loja estão em [`docs/play-store/`](docs/play-store/).
 
 O CI também publica o APK debug como artefato (`arc-ai-debug-apk`) a cada push na `main`.
 
@@ -76,7 +79,8 @@ src/
   prompts/        instruções de sistema
   feedback/       feedback de fim de sessão
   memory/         memória entre sessões
-  plan/           cronograma e progresso
+  plan/           plano de estudo e constância
+  evaluation/     avaliação: nível e pontos fortes e fracos
   storage/        SQLite, migrations, backup
   secure/         chave de API (Keystore)
   config/         idiomas, modelos, níveis de pausa, limites
