@@ -67,7 +67,7 @@ Interface e explicações em português do Brasil. Destinado a maiores de 18 ano
 - **Tags sugeridas:** aprendizado de idiomas, educação
 - **E-mail de contato:** contato@arctechnologies.co
 - **Site (opcional):** https://arctechnologies.co
-- **Política de privacidade:** URL pública da página de `politica-de-privacidade.md`
+- **Política de privacidade:** https://www.arctechnologies.co/arc-ai/privacidade
 
 ## Mídias (em `midias/play-store/`)
 

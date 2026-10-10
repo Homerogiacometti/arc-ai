@@ -1,8 +1,10 @@
 # Política de privacidade do Arc AI
 
+Publicada em https://www.arctechnologies.co/arc-ai/privacidade (fonte: `site-arc-tech/site/arc-ai/privacidade.html`). Ao mudar o texto, atualize os dois.
+
 Última atualização: 10 de outubro de 2026
 
-O Arc AI é um app para praticar conversação em idiomas falando com uma inteligência artificial. Ele é desenvolvido pela Arc Technologies. Esta política explica quais dados o app usa, para onde eles vão e como você controla esses dados.
+O Arc AI é um app para praticar conversação em idiomas falando com uma inteligência artificial. Ele é desenvolvido pela ArcTechnologies. Esta política explica quais dados o app usa, para onde eles vão e como você controla esses dados.
 
 ## Resumo
 
@@ -57,6 +59,16 @@ Se você reportar uma resposta da IA, o app abre o seu aplicativo de e-mail com 
 
 O Arc AI não tem anúncios, não usa ferramentas de análise ou rastreamento e não vende nem compartilha dados com terceiros para publicidade.
 
+## Seus direitos (LGPD)
+
+Como os seus dados ficam no seu aparelho, você exerce os direitos da Lei Geral de Proteção de Dados diretamente no app:
+
+- **Acesso e correção:** veja e edite o perfil, os interesses e objetivos, e veja a memória em "Perfil e memória".
+- **Exclusão:** apague itens da memória, toda a memória, ou todos os dados em "Configurações → Apagar todos os dados". Desinstalar o app também apaga tudo.
+- **Portabilidade:** exporte os seus dados em "Configurações → Exportar backup".
+- **Dados enviados ao Google:** são tratados pelo Google conforme os termos dele, e os pedidos sobre eles são feitos ao Google, pela sua conta Google.
+- **Reclamar à ANPD** (Autoridade Nacional de Proteção de Dados), se considerar que seus direitos foram violados.
+
 ## Crianças
 
 O Arc AI é destinado a maiores de 18 anos e não é direcionado a crianças.
@@ -67,4 +79,4 @@ Se esta política mudar, a nova versão será publicada neste endereço, com a d
 
 ## Contato
 
-Arc Technologies — contato@arctechnologies.co
+ArcTechnologies — contato@arctechnologies.co

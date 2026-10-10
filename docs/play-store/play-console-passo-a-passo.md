@@ -22,7 +22,7 @@ O painel lista as tarefas abaixo. A ordem não importa.
 
 ### 2.1 Política de privacidade
 
-Cole a URL pública da política (ver `politica-de-privacidade.md`).
+Cole `https://www.arctechnologies.co/arc-ai/privacidade`.
 
 ### 2.2 Acesso ao app — **atenção**
 
