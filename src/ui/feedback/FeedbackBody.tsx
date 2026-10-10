@@ -5,6 +5,7 @@ import { FeedbackView } from './FeedbackView';
 
 const END_NOTES: Record<string, string> = {
   disconnected: 'A conexão caiu e a sessão foi encerrada. O que foi conversado ficou salvo.',
+  silence: 'A sessão foi encerrada depois de um tempo sem fala. O que foi conversado ficou salvo.',
   'resume-failed': 'Não deu para retomar depois da pausa. O que foi conversado ficou salvo.',
 };
 

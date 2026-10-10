@@ -8,11 +8,12 @@ import {
 } from '@google/genai';
 import { base64ToPcm16, INPUT_MIME_TYPE, pcm16ToBase64 } from '../audio/pcm';
 import { MODELS } from '../config/models';
-import type {
-  ConnectOptions,
-  ConversationConnection,
-  ConversationEvents,
-  ConversationProvider,
+import {
+  ResumeRejectedError,
+  type ConnectOptions,
+  type ConversationConnection,
+  type ConversationEvents,
+  type ConversationProvider,
 } from './provider';
 
 export const END_SESSION_TOOL = 'end_session';
@@ -93,21 +94,42 @@ export class GeminiLiveProvider implements ConversationProvider {
       });
     };
 
-    session = await ai.live.connect({
+    // O SDK só resolve depois do `setupComplete`; se o servidor fechar antes (ex.: recusou a
+    // retomada), a promessa nunca termina. Enquanto abre, o fechamento rejeita com o motivo.
+    let failOpening: ((error: Error) => void) | null = null;
+    const openingFailed = new Promise<never>((_, reject) => {
+      failOpening = reject;
+    });
+
+    const opening = ai.live.connect({
       model: MODELS.live,
       config: buildLiveConfig(options),
       callbacks: {
         onmessage: (message) => {
           dispatchServerMessage(message, events, respondToTool);
         },
-        onclose: () => {
-          if (!closedByApp) events.onDisconnected();
+        onclose: (event: CloseEvent) => {
+          if (failOpening) {
+            const message = `Conexão recusada: ${closeReason(event)}`;
+            failOpening(
+              options.resumeHandle && event.code === POLICY_VIOLATION
+                ? new ResumeRejectedError(message)
+                : new Error(message),
+            );
+            return;
+          }
+          if (!closedByApp) {
+            events.onDisconnected(closeReason(event));
+          }
         },
         onerror: () => {
-          if (!closedByApp) events.onDisconnected();
+          // Enquanto abre, o `onclose` que vem em seguida traz o código.
+          if (!failOpening && !closedByApp) events.onDisconnected('erro no WebSocket');
         },
       },
     });
+    session = await Promise.race([opening, openingFailed]);
+    failOpening = null;
     const connected = session;
 
     return {
@@ -128,4 +150,11 @@ export class GeminiLiveProvider implements ConversationProvider {
       },
     };
   }
+}
+
+/** Código com que o servidor recusa a retomada (handle inválido ou sessão ainda presa). */
+const POLICY_VIOLATION = 1008;
+
+function closeReason(event: CloseEvent): string {
+  return `fechada (${String(event.code)}) ${event.reason}`.trim();
 }

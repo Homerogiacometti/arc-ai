@@ -1,5 +1,6 @@
 import { findLanguage } from '../../config/languages';
 import { FeedbackBody } from '../feedback/FeedbackBody';
+import { ReportContent } from '../feedback/ReportContent';
 import { useSessionDetail } from '../feedback/use-session-detail';
 import { formatDateTime, formatDuration, modeLabel } from '../format';
 import { ScreenHeader } from '../ScreenHeader';
@@ -32,6 +33,7 @@ export function SessionScreen({ sessionId }: { sessionId: number }) {
               ))}
             </ol>
           </section>
+          <ReportContent detail={state.detail} />
         </>
       )}
     </main>

@@ -2,6 +2,7 @@ import type { Services } from '../app/services';
 import { FakeInput, FakeOutput, FakeProvider } from '../conversation/fakes';
 import { SAMPLE_RESPONSE } from '../feedback/fixtures';
 import type { JsonModel } from '../feedback/generate-feedback';
+import { exportBackup, importBackup } from '../storage/backup';
 import { eraseAllData } from '../storage/erase-all';
 import { SqlMemoryRepository } from '../storage/memory-repository';
 import { SqlPlanRepository } from '../storage/plan-repository';
@@ -41,6 +42,10 @@ export async function createTestServices(options: { apiKey?: string | null } = {
     allowSleep: vi.fn(() => Promise.resolve()),
   };
   const validateApiKey = vi.fn<Services['validateApiKey']>(() => Promise.resolve({ ok: true }));
+  const device = {
+    shareFile: vi.fn<Services['device']['shareFile']>(() => Promise.resolve()),
+    openUrl: vi.fn<Services['device']['openUrl']>(),
+  };
   const services = {
     apiKeyStore,
     profiles: new SqlProfileRepository(db),
@@ -58,6 +63,11 @@ export async function createTestServices(options: { apiKey?: string | null } = {
       await eraseAllData(db);
       await apiKeyStore.remove();
     },
+    backup: {
+      export: () => exportBackup(db),
+      import: (backup) => importBackup(db, backup),
+    },
+    device,
     conversation: {
       provider,
       createInput: () => new FakeInput(),
@@ -65,5 +75,5 @@ export async function createTestServices(options: { apiKey?: string | null } = {
     },
     screen,
   } satisfies Services;
-  return { services, db, apiKeyStore, provider, generateJson, screen, validateApiKey };
+  return { services, db, apiKeyStore, provider, generateJson, screen, validateApiKey, device };
 }

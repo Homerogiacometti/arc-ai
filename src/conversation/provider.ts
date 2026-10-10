@@ -32,8 +32,8 @@ export interface ConversationEvents {
   onGoAway(): void;
   /** Total de tokens informado pelo servidor (RNF04). */
   onUsage(totalTokens: number): void;
-  /** A conexão caiu sem `close()` do app. */
-  onDisconnected(): void;
+  /** A conexão caiu sem `close()` do app; `reason` traz o código e o motivo, para diagnóstico. */
+  onDisconnected(reason?: string): void;
 }
 
 export interface ConversationConnection {
@@ -42,6 +42,12 @@ export interface ConversationConnection {
   sendText(text: string): void;
   close(): void;
 }
+
+/**
+ * O servidor recusou a retomada pelo handle. Acontece depois de uma queda brusca (ex.: modo
+ * avião): o servidor ainda vê a conexão antiga e responde "already connected".
+ */
+export class ResumeRejectedError extends Error {}
 
 export interface ConversationProvider {
   connect(options: ConnectOptions, events: ConversationEvents): Promise<ConversationConnection>;

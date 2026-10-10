@@ -1,4 +1,5 @@
 import { FakeInput, FakeOutput, FakeProvider } from './fakes';
+import { ResumeRejectedError } from './provider';
 import { SessionController, type SessionResult } from './session-controller';
 
 function setup() {
@@ -16,6 +17,13 @@ function setup() {
     createOutput: (onIdle) => (output = new FakeOutput(onIdle)),
     now: () => now,
     goodbyeTimeoutMs: 5_000,
+    silence: { promptAfterMs: 120_000, endAfterPromptMs: 30_000 },
+    connectTimeoutMs: 1_000,
+    reconnectWindowMs: 45_000,
+    retryWait: (ms: number) => {
+      now += ms;
+      return Promise.resolve();
+    },
   });
   const ended = vi.fn<(result: SessionResult) => void>();
   const start = () =>
@@ -27,6 +35,8 @@ function setup() {
           silenceDurationMs: 800,
           voiceName: 'Puck',
           openingCue: 'cue',
+          silenceCue: 'silence-cue',
+          recapCue: (transcript) => `recap:${transcript.map((turn) => turn.text).join('|')}`,
         }),
       ended,
     );
@@ -238,5 +248,267 @@ describe('SessionController', () => {
       error: 'offline',
     });
     expect(t.output().closed).toBe(true);
+  });
+
+  describe('proteção por silêncio (RF07)', () => {
+    it('ruído no microfone não conta como fala', async () => {
+      const t = setup();
+      await t.start();
+      t.advance(120_000);
+      t.input().speak(0.5);
+      expect(t.provider.current.sentText).toEqual(['cue', 'silence-cue']);
+    });
+
+    it('pergunta após 2 min sem fala e encerra 30 s depois da pergunta', async () => {
+      const t = setup();
+      await t.start();
+      t.provider.current.events.onTranscript('user', 'Hi there');
+      t.advance(119_000);
+      t.input().speak(0);
+      expect(t.provider.current.sentText).toEqual(['cue']);
+
+      t.advance(1_000);
+      t.input().speak(0);
+      expect(t.provider.current.sentText).toEqual(['cue', 'silence-cue']);
+
+      t.advance(29_000);
+      t.input().speak(0);
+      expect(t.controller.snapshot.status).toBe('active');
+      t.advance(1_000);
+      t.input().speak(0);
+      await vi.waitFor(() => {
+        expect(t.ended).toHaveBeenCalled();
+      });
+      expect(t.controller.snapshot.endReason).toBe('silence');
+      expect(t.ended.mock.calls[0]?.[0].transcript).toEqual([
+        { speaker: 'user', text: 'Hi there' },
+      ]);
+    });
+
+    it('a fala transcrita do usuário e a IA falando zeram a contagem', async () => {
+      const t = setup();
+      await t.start();
+      t.advance(100_000);
+      t.provider.current.events.onTranscript('user', 'I am here');
+      t.advance(100_000);
+      t.input().speak(0);
+      t.provider.current.events.onAudio(new Int16Array(10));
+      t.advance(100_000);
+      t.input().speak(0);
+      t.output().finishPlaying();
+      t.advance(100_000);
+      t.input().speak(0);
+      expect(t.provider.current.sentText).toEqual(['cue']);
+    });
+
+    it('depois da pergunta, a resposta da IA e a fala do usuário mantêm a sessão', async () => {
+      const t = setup();
+      await t.start();
+      t.advance(120_000);
+      t.input().speak(0);
+      t.provider.current.events.onAudio(new Int16Array(10));
+      t.advance(10_000);
+      t.input().speak(0);
+      t.output().finishPlaying();
+      t.advance(20_000);
+      t.provider.current.events.onTranscript('user', 'Yes, sorry');
+      t.advance(60_000);
+      t.input().speak(0);
+      expect(t.controller.snapshot.status).toBe('active');
+    });
+
+    it('tempo em pausa não conta como silêncio', async () => {
+      const t = setup();
+      await t.start();
+      t.provider.current.events.onResumeHandle('h');
+      t.advance(100_000);
+      await t.controller.pause();
+      t.advance(600_000);
+      await t.controller.resume();
+      t.advance(10_000);
+      t.input().speak(0);
+      expect(t.provider.current.sentText).toEqual([]);
+    });
+  });
+
+  describe('troca de conexão antes do limite (RF08)', () => {
+    it('abre a próxima com o handle e fecha a anterior, sem parar microfone nem cronômetro', async () => {
+      const t = setup();
+      await t.start();
+      const first = t.provider.current;
+      const mic = t.input();
+      first.events.onResumeHandle('h1');
+      first.events.onTranscript('user', 'Hello');
+      t.advance(9 * 60_000);
+
+      first.events.onGoAway();
+      await vi.waitFor(() => {
+        expect(first.closed).toBe(true);
+      });
+      const second = t.provider.current;
+      expect(second).not.toBe(first);
+      expect(second.options.resumeHandle).toBe('h1');
+      expect(second.sentText).toEqual([]);
+      expect(t.input()).toBe(mic);
+      expect(t.controller.snapshot.status).toBe('active');
+
+      // Eventos atrasados da conexão antiga são ignorados; a nova continua a transcrição.
+      first.events.onDisconnected();
+      first.events.onTranscript('ai', 'stale');
+      second.events.onTranscript('user', ' world');
+      mic.speak(0.1);
+      expect(second.sentAudio).toHaveLength(1);
+      expect(t.controller.snapshot.status).toBe('active');
+
+      t.advance(60_000);
+      await t.controller.stop();
+      expect(t.ended.mock.calls[0]?.[0]).toMatchObject({
+        durationMs: 10 * 60_000,
+        transcript: [{ speaker: 'user', text: 'Hello world' }],
+      });
+    });
+
+    it('se a troca falhar, segue na conexão atual', async () => {
+      const t = setup();
+      await t.start();
+      const first = t.provider.current;
+      first.events.onResumeHandle('h1');
+      t.provider.failNext = new Error('busy');
+      first.events.onGoAway();
+      await vi.waitFor(() => {
+        expect(t.provider.failNext).toBeNull();
+      });
+      expect(first.closed).toBe(false);
+      expect(t.controller.snapshot.status).toBe('active');
+    });
+  });
+
+  describe('queda de conexão (RNF03)', () => {
+    it('reconecta com o handle e o tempo reconectando não conta', async () => {
+      const t = setup();
+      await t.start();
+      const first = t.provider.current;
+      first.events.onResumeHandle('h1');
+      t.advance(30_000);
+      t.provider.failNext = new Error('offline');
+
+      first.events.onDisconnected();
+      expect(t.controller.snapshot.status).toBe('reconnecting');
+      t.advance(5_000);
+      await vi.waitFor(() => {
+        expect(t.controller.snapshot.status).toBe('active');
+      });
+      expect(t.provider.current).not.toBe(first);
+      expect(t.provider.current.options.resumeHandle).toBe('h1');
+      expect(t.controller.elapsedMs()).toBe(30_000);
+    });
+
+    it('continua tentando até a rede voltar, dentro da janela', async () => {
+      const t = setup();
+      await t.start();
+      const first = t.provider.current;
+      first.events.onResumeHandle('h1');
+      const real = t.provider.connect.bind(t.provider);
+      let failures = 0;
+      vi.spyOn(t.provider, 'connect').mockImplementation((options, events) => {
+        if (failures < 5) {
+          failures++;
+          return Promise.reject(new Error('offline'));
+        }
+        return real(options, events);
+      });
+
+      first.events.onDisconnected();
+      await vi.waitFor(() => {
+        expect(t.controller.snapshot.status).toBe('active');
+      });
+      expect(failures).toBe(5);
+    });
+
+    it('conexão que cai enquanto abre (retomada recusada) conta como falha e tenta de novo', async () => {
+      const t = setup();
+      await t.start();
+      const first = t.provider.current;
+      first.events.onResumeHandle('h1');
+      const real = t.provider.connect.bind(t.provider);
+      let refused = 0;
+      vi.spyOn(t.provider, 'connect').mockImplementation(async (options, events) => {
+        const connection = await real(options, events);
+        if (refused < 2) {
+          refused++;
+          events.onDisconnected('fechada (1008) handle inválido');
+        }
+        return connection;
+      });
+
+      first.events.onDisconnected('fechada (1006)');
+      await vi.waitFor(() => {
+        expect(t.controller.snapshot.status).toBe('active');
+      });
+      expect(refused).toBe(2);
+      expect(t.provider.connections.slice(-3).map((connection) => connection.closed)).toEqual([
+        true,
+        true,
+        false,
+      ]);
+    });
+
+    it('retomada recusada: abre sessão nova sem handle e manda a conversa até ali', async () => {
+      const t = setup();
+      await t.start();
+      const first = t.provider.current;
+      first.events.onResumeHandle('h1');
+      first.events.onTranscript('ai', 'How was your weekend?');
+      first.events.onTranscript('user', 'Great');
+      t.provider.failNext = new ResumeRejectedError('already connected');
+
+      first.events.onDisconnected('fechada (1006)');
+      await vi.waitFor(() => {
+        expect(t.controller.snapshot.status).toBe('active');
+      });
+      expect(t.provider.current).not.toBe(first);
+      expect(t.provider.current.options.resumeHandle).toBeUndefined();
+      expect(t.provider.current.sentText).toEqual(['recap:How was your weekend?|Great']);
+
+      t.input().speak();
+      expect(t.provider.current.sentAudio).toHaveLength(1);
+    });
+
+    it('sem rede, a abertura que fica parada esgota o tempo e conta como falha', async () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      try {
+        const t = setup();
+        await t.start();
+        t.provider.current.events.onResumeHandle('h1');
+        vi.spyOn(t.provider, 'connect').mockReturnValue(new Promise(() => undefined));
+        t.provider.current.events.onDisconnected();
+        expect(t.controller.snapshot.status).toBe('reconnecting');
+        for (let i = 0; i < 30 && t.controller.snapshot.status === 'reconnecting'; i++) {
+          await vi.advanceTimersByTimeAsync(1_000);
+        }
+        expect(t.controller.snapshot.endReason).toBe('disconnected');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('encerra e salva quando a janela de reconexão acaba', async () => {
+      const t = setup();
+      await t.start();
+      t.provider.current.events.onResumeHandle('h1');
+      t.provider.current.events.onTranscript('user', 'Hello there');
+      const failing = vi.spyOn(t.provider, 'connect').mockRejectedValue(new Error('offline'));
+
+      t.provider.current.events.onDisconnected();
+      await vi.waitFor(() => {
+        expect(t.ended).toHaveBeenCalled();
+      });
+      expect(t.controller.snapshot.endReason).toBe('disconnected');
+      // Uma tentativa a cada 2 s (0 a 44 s) e a última no fim da janela (45 s).
+      expect(failing).toHaveBeenCalledTimes(24);
+      expect(t.ended.mock.calls[0]?.[0].transcript).toEqual([
+        { speaker: 'user', text: 'Hello there' },
+      ]);
+    });
   });
 });

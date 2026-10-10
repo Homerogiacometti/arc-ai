@@ -11,6 +11,7 @@ const STATUS_TEXT: Partial<Record<SessionSnapshot['status'], string>> = {
   connecting: 'Conectando…',
   paused: 'Pausada',
   resuming: 'Retomando…',
+  reconnecting: 'Conexão instável, reconectando…',
   ending: 'Encerrando…',
 };
 
@@ -23,7 +24,9 @@ function endMessage({ endReason, error }: SessionSnapshot): string | null {
     case 'resume-failed':
       return 'Não deu para retomar a conversa depois da pausa. A sessão foi encerrada.';
     case 'disconnected':
-      return 'A conexão caiu e a sessão foi encerrada.';
+      return 'A conexão caiu e não voltou. O que foi conversado ficou salvo.';
+    case 'silence':
+      return 'Sessão encerrada depois de um tempo sem fala. O que foi conversado ficou salvo.';
     default:
       return null;
   }

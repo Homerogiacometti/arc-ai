@@ -1,6 +1,7 @@
 import type { Language } from '../config/languages';
 import { LEVELS, type LearnerProfile } from '../config/profile';
 import type { ResponseMode } from '../config/response-modes';
+import type { TranscriptTurn } from '../conversation/session-controller';
 import { formatMemoryBlock, type MemoryLists } from '../memory/memory';
 
 /** Versão do texto da instrução; incrementar a cada mudança de conteúdo. */
@@ -9,6 +10,25 @@ export const CONVERSATION_INSTRUCTION_VERSION = 2;
 /** Mensagem enviada ao conectar para a IA abrir a conversa (RF04). */
 export const OPENING_CUE =
   '(The user has just started the session. Greet them and open the conversation.)';
+
+/** Enviada depois de 2 min sem fala (RF07): a IA pergunta se o usuário ainda está ali. */
+export const SILENCE_CUE =
+  '(The user has been silent for a while. In one short sentence, ask if they are still there.)';
+
+/** Quantos turnos recentes vão no resumo para a sessão nova depois de uma queda. */
+const RECAP_TURNS = 30;
+
+/**
+ * Enviada quando a retomada é recusada depois de uma queda (RNF03): a sessão nova não tem o
+ * contexto, então recebe a conversa até ali e continua de onde parou.
+ */
+export function buildRecapCue(transcript: TranscriptTurn[]): string {
+  const lines = transcript
+    .slice(-RECAP_TURNS)
+    .map(({ speaker, text }) => `${speaker === 'user' ? 'User' : 'You'}: ${text.trim()}`);
+  const history = lines.length > 0 ? `\nConversation so far:\n${lines.join('\n')}\n` : ' ';
+  return `(The connection dropped and the conversation continues in a new session.${history}Do not greet the user again. In one short sentence, say the connection dropped, then pick the conversation back up where it stopped.)`;
+}
 
 const LEVEL_GUIDANCE: Record<LearnerProfile['level'], string> = {
   beginner: 'Use simple vocabulary, short sentences and a slightly slower, clear pace.',

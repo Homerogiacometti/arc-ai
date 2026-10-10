@@ -195,4 +195,57 @@ describe('Configurações', () => {
     expect(await services.settings.get()).toEqual(DEFAULT_SETTINGS);
     expect(useSettingsStore.getState().voice).toBe(DEFAULT_SETTINGS.voice);
   });
+
+  describe('Backup', () => {
+    it('exporta um arquivo JSON sem a chave', async () => {
+      const { user, services, device } = await setup();
+      await services.memory.replace('en-US', {
+        personal: ['Mora em Recife'],
+        mistakes: [],
+        strengths: [],
+      });
+      await openMenu(user, 'Configurações');
+      await user.click(await screen.findByRole('button', { name: 'Exportar backup' }));
+
+      expect(await screen.findByRole('status')).toHaveTextContent('Backup gerado.');
+      const [fileName, text] = device.shareFile.mock.calls[0] ?? [];
+      expect(fileName).toMatch(/^arc-ai-backup-\d{4}-\d{2}-\d{2}\.json$/);
+      expect(text).toContain('Mora em Recife');
+      expect(text).not.toContain('AIza');
+    });
+
+    it('importa com confirmação, substitui os dados e mantém a chave', async () => {
+      const { user, services, apiKeyStore } = await setup();
+      const backup = await services.backup.export();
+      await services.memory.replace('en-US', {
+        personal: ['Será apagado'],
+        mistakes: [],
+        strengths: [],
+      });
+      await openMenu(user, 'Configurações');
+      await screen.findByRole('button', { name: 'Importar backup' });
+
+      const file = new File([JSON.stringify(backup)], 'backup.json', { type: 'application/json' });
+      await user.upload(screen.getByLabelText('Arquivo de backup'), file);
+      expect(await screen.findByRole('group', { name: 'Confirmar importação' })).toHaveTextContent(
+        '(0 conversas)',
+      );
+      await user.click(screen.getByRole('button', { name: 'Substituir' }));
+
+      expect(await screen.findByLabelText('Idioma atual')).toHaveTextContent('Inglês');
+      expect(await services.memory.list()).toEqual([]);
+      expect(apiKeyStore.value).toBe('AIzaKEY');
+    });
+
+    it('avisa quando o arquivo não é um backup', async () => {
+      const { user } = await setup();
+      await openMenu(user, 'Configurações');
+      await screen.findByRole('button', { name: 'Importar backup' });
+      await user.upload(
+        screen.getByLabelText('Arquivo de backup'),
+        new File(['{"oi": 1}'], 'x.json', { type: 'application/json' }),
+      );
+      expect(await screen.findByRole('alert')).toHaveTextContent('não é um backup do Arc AI');
+    });
+  });
 });

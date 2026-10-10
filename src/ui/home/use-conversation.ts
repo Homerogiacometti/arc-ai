@@ -8,13 +8,18 @@ import {
   type SessionResult,
   type StartOptions,
 } from '../../conversation/session-controller';
-import { buildConversationInstruction, OPENING_CUE } from '../../prompts/conversation-instruction';
+import {
+  buildConversationInstruction,
+  buildRecapCue,
+  OPENING_CUE,
+  SILENCE_CUE,
+} from '../../prompts/conversation-instruction';
 import { hasUserSpeech } from '../../feedback/generate-feedback';
 import type { Settings } from '../../config/settings';
 import { useSettingsStore } from '../../store/settings';
 import { useNavigation } from '../navigation';
 
-const RUNNING = new Set(['connecting', 'active', 'paused', 'resuming', 'ending']);
+const RUNNING = new Set(['connecting', 'active', 'paused', 'resuming', 'reconnecting', 'ending']);
 
 /** Liga o SessionController à UI: estado, cronômetro, pausa em segundo plano e tela ligada. */
 export function useConversation() {
@@ -69,6 +74,8 @@ export function useConversation() {
       silenceDurationMs: PAUSE_LEVELS[pauseLevel].silenceDurationMs,
       voiceName: voice,
       openingCue: OPENING_CUE,
+      silenceCue: SILENCE_CUE,
+      recapCue: buildRecapCue,
     };
   }, [services, settings]);
 

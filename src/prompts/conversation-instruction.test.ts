@@ -1,7 +1,7 @@
 import { findLanguage } from '../config/languages';
 import { estimateTokens, MEMORY } from '../config/limits';
 import { EMPTY_MEMORY } from '../memory/memory';
-import { buildConversationInstruction } from './conversation-instruction';
+import { buildConversationInstruction, buildRecapCue } from './conversation-instruction';
 
 const spanish = findLanguage('es-ES');
 if (!spanish) throw new Error('es-ES ausente');
@@ -55,5 +55,23 @@ describe('buildConversationInstruction', () => {
     });
     const notes = text.slice(text.indexOf('NOTES'), text.indexOf('USING YOUR NOTES'));
     expect(estimateTokens(notes)).toBeLessThanOrEqual(MEMORY.tokenBudget + 20);
+  });
+});
+
+describe('buildRecapCue', () => {
+  it('traz os turnos recentes e pede para continuar sem cumprimentar de novo', () => {
+    const turns = Array.from({ length: 40 }, (_, i) => ({
+      speaker: i % 2 === 0 ? ('ai' as const) : ('user' as const),
+      text: `turn ${String(i)} `,
+    }));
+    const cue = buildRecapCue(turns);
+    expect(cue).toContain('You: turn 38\nUser: turn 39\n');
+    expect(cue).toContain('User: turn 11');
+    expect(cue).not.toContain('turn 9\n');
+    expect(cue).toContain('Do not greet the user again');
+  });
+
+  it('funciona sem conversa anterior', () => {
+    expect(buildRecapCue([])).not.toContain('Conversation so far');
   });
 });

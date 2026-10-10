@@ -1,9 +1,11 @@
 import type { MicrophoneChunk } from '../audio/microphone';
-import type {
-  ConnectOptions,
-  ConversationConnection,
-  ConversationProvider,
-  Speaker,
+import { SILENCE } from '../config/limits';
+import {
+  ResumeRejectedError,
+  type ConnectOptions,
+  type ConversationConnection,
+  type ConversationProvider,
+  type Speaker,
 } from './provider';
 
 export interface AudioInput {
@@ -20,9 +22,10 @@ export interface AudioOutput {
 }
 
 export type SessionStatus =
-  'idle' | 'connecting' | 'active' | 'paused' | 'resuming' | 'ending' | 'ended';
+  'idle' | 'connecting' | 'active' | 'paused' | 'resuming' | 'reconnecting' | 'ending' | 'ended';
 
-export type EndReason = 'user' | 'voice' | 'resume-failed' | 'disconnected' | 'start-failed';
+export type EndReason =
+  'user' | 'voice' | 'silence' | 'resume-failed' | 'disconnected' | 'start-failed';
 
 export interface TranscriptTurn {
   speaker: Speaker;
@@ -59,6 +62,14 @@ export interface SessionControllerOptions {
   voiceThreshold?: number;
   /** Tempo máximo esperando a despedida da IA depois de `end_session`. */
   goodbyeTimeoutMs?: number;
+  /** Proteção por silêncio (RF07), em tempo de conversa. */
+  silence?: { promptAfterMs: number; endAfterPromptMs: number };
+  /** Tempo máximo para abrir uma conexão: sem rede, a abertura pode ficar parada sem falhar. */
+  connectTimeoutMs?: number;
+  /** Por quanto tempo tentar reconectar depois de uma queda antes de encerrar (RNF03). */
+  reconnectWindowMs?: number;
+  /** Espera entre tentativas de reconectar; o padrão volta antes se a rede voltar. */
+  retryWait?: (ms: number) => Promise<void>;
 }
 
 type ConnectionOptions = Omit<ConnectOptions, 'resumeHandle'>;
@@ -66,16 +77,24 @@ type ConnectionOptions = Omit<ConnectOptions, 'resumeHandle'>;
 export type StartOptions = ConnectionOptions & {
   /** Texto enviado ao conectar para a IA abrir a conversa. */
   openingCue: string;
+  /** Texto enviado depois de um tempo sem fala, para a IA perguntar se o usuário está ali. */
+  silenceCue: string;
+  /** Texto para a sessão nova quando a retomada é recusada, com a conversa até ali. */
+  recapCue: (transcript: TranscriptTurn[]) => string;
 };
 
 const VOICE_THRESHOLD = 0.02;
 const GOODBYE_TIMEOUT_MS = 10_000;
+const CONNECT_TIMEOUT_MS = 10_000;
+const RECONNECT_WINDOW_MS = 45_000;
+const RETRY_INTERVAL_MS = 2_000;
 /** Depois de falar, o indicador "usuário" fica aceso por este tempo. */
 const SPEAKING_HOLD_MS = 400;
 
 /**
  * Coordena uma sessão de conversa: microfone → provedor → alto-falante, cronômetro,
- * transcrição, pausa/retomada (ADR-006) e encerramento por botão ou voz (RF07).
+ * transcrição, pausa/retomada (ADR-006), encerramento por botão, voz ou silêncio (RF07),
+ * troca de conexão antes do limite do servidor (RF08) e reconexão após quedas (RNF03).
  * Não depende de React; a UI assina `subscribe` e lê `snapshot`.
  */
 export class SessionController {
@@ -88,6 +107,12 @@ export class SessionController {
   #input: AudioInput | null = null;
   #output: AudioOutput | null = null;
   #resumeHandle: string | null = null;
+  #silenceCue = '';
+  #recapCue: StartOptions['recapCue'] = () => '';
+  /** Tempo de conversa na última fala do usuário ou da IA (proteção por silêncio). */
+  #lastActivityMs = 0;
+  #silencePrompted = false;
+  #handingOver = false;
 
   #startedAt = 0;
   #activeSince: number | null = null;
@@ -108,6 +133,10 @@ export class SessionController {
       now: () => Date.now(),
       voiceThreshold: VOICE_THRESHOLD,
       goodbyeTimeoutMs: GOODBYE_TIMEOUT_MS,
+      silence: SILENCE,
+      connectTimeoutMs: CONNECT_TIMEOUT_MS,
+      reconnectWindowMs: RECONNECT_WINDOW_MS,
+      retryWait: waitForNetworkOrTimeout,
       ...options,
     };
   }
@@ -154,8 +183,10 @@ export class SessionController {
     this.#set({ status: 'connecting' });
 
     try {
-      const { openingCue, ...connectOptions } = await loadOptions();
+      const { openingCue, silenceCue, recapCue, ...connectOptions } = await loadOptions();
       this.#connectOptions = connectOptions;
+      this.#silenceCue = silenceCue;
+      this.#recapCue = recapCue;
       await this.#openConnection();
       this.#connection?.sendText(openingCue);
       this.#activeSince = this.#options.now();
@@ -196,49 +227,164 @@ export class SessionController {
     }
   }
 
+  /** Abre a conexão e liga o microfone (início e retomada). */
   async #openConnection(): Promise<void> {
+    this.#connection = await this.#connect();
+    this.#input = this.#options.createInput();
+    await this.#input.start((chunk) => {
+      this.#onMicChunk(chunk);
+    });
+  }
+
+  /**
+   * Abre uma conexão com o handle, se houver. Se o servidor recusar a retomada, abre uma
+   * sessão nova e manda a conversa até ali, para a IA continuar de onde parou.
+   */
+  async #connect(): Promise<ConversationConnection> {
+    try {
+      return await this.#open();
+    } catch (error) {
+      if (!(error instanceof ResumeRejectedError)) throw error;
+      log(`retomada recusada (${error.message}); abrindo sessão nova com o histórico`);
+      this.#resumeHandle = null;
+      const connection = await this.#open();
+      connection.sendText(this.#recapCue(this.#transcript));
+      return connection;
+    }
+  }
+
+  /**
+   * Abre uma conexão nova (com o handle, se houver). Eventos de uma conexão que deixou de ser
+   * a atual (trocada ou fechada) são ignorados.
+   */
+  async #open(): Promise<ConversationConnection> {
     if (!this.#connectOptions) throw new Error('Sessão sem configuração');
     const options: ConnectOptions = {
       ...this.#connectOptions,
       ...(this.#resumeHandle ? { resumeHandle: this.#resumeHandle } : {}),
     };
-    this.#connection = await this.#options.provider.connect(options, {
+    let connection: ConversationConnection | null = null;
+    /** A conexão caiu enquanto ainda abria (ex.: o servidor recusou a retomada). */
+    const opening: { lost: string | null } = { lost: null };
+    const current = () => connection !== null && connection === this.#connection;
+    const pending = this.#options.provider.connect(options, {
       onAudio: (pcm) => {
-        this.#onAiAudio(pcm);
+        if (current()) this.#onAiAudio(pcm);
       },
       onInterrupted: () => {
+        if (!current()) return;
         this.#output?.interrupt();
         this.#aiAudioStartedThisTurn = false;
       },
       onTurnComplete: () => {
+        if (!current()) return;
         this.#aiAudioStartedThisTurn = false;
         this.#maybeFinishAfterGoodbye();
       },
       onTranscript: (speaker, text) => {
+        if (!current()) return;
+        if (speaker === 'user') this.#markActivity();
         this.#appendTranscript(speaker, text);
       },
       onEndRequested: () => {
-        this.#onEndRequested();
+        if (current()) this.#onEndRequested();
       },
       onResumeHandle: (handle) => {
         this.#resumeHandle = handle;
       },
       onGoAway: () => {
-        // Reconexão transparente perto do limite de ~10 min: M8 (RF08).
+        if (!current()) return;
+        log('aviso de fim de conexão (goAway)');
+        void this.#handOver();
       },
       onUsage: (totalTokens) => {
-        // Soma por mensagem; a semântica exata do usageMetadata da Live API é conferida no M8 (RNF04).
+        // Soma por mensagem: o total de cada geração (contexto + resposta), como é cobrado.
         this.#totalTokens += totalTokens;
       },
-      onDisconnected: () => {
-        if (this.#snapshot.status === 'active') void this.#finish('disconnected');
+      onDisconnected: (reason) => {
+        if (connection === null) {
+          opening.lost = reason ?? 'sem motivo';
+          return;
+        }
+        if (!current()) return;
+        log(`queda: ${reason ?? 'sem motivo'}`);
+        if (this.#snapshot.status === 'active') void this.#reconnect();
       },
     });
+    const opened = await withTimeout(pending, this.#options.connectTimeoutMs);
+    if (opening.lost !== null) {
+      opened.close();
+      throw new Error(`Conexão caiu ao abrir: ${opening.lost}`);
+    }
+    connection = opened;
+    return connection;
+  }
 
-    this.#input = this.#options.createInput();
-    await this.#input.start((chunk) => {
-      this.#onMicChunk(chunk);
-    });
+  /**
+   * RF08: o servidor avisou que vai fechar a conexão (~10 min). Abre a próxima com o handle
+   * antes de fechar a atual, sem parar o microfone nem o cronômetro.
+   */
+  async #handOver(): Promise<void> {
+    if (this.#handingOver || this.#snapshot.status !== 'active' || !this.#resumeHandle) return;
+    this.#handingOver = true;
+    try {
+      const next = await this.#connect();
+      // O usuário pode ter parado ou pausado enquanto a conexão abria.
+      if (!this.#statusIs('active')) {
+        next.close();
+        return;
+      }
+      const previous = this.#connection;
+      this.#connection = next;
+      previous?.close();
+      log('conexão trocada');
+    } catch (error) {
+      // Se não deu para trocar, a queda da conexão atual cai em #reconnect.
+      log(`troca falhou: ${describe(error)}`);
+    } finally {
+      this.#handingOver = false;
+    }
+  }
+
+  /**
+   * RNF03: a conexão caiu no meio da conversa. Tenta retomar com o handle até a rede voltar,
+   * dentro de uma janela de tempo; se não der, encerra e salva o que houver.
+   */
+  async #reconnect(): Promise<void> {
+    const previous = this.#connection;
+    this.#connection = null;
+    previous?.close();
+    if (!this.#resumeHandle) {
+      await this.#finish('disconnected');
+      return;
+    }
+    this.#stopClock();
+    this.#output?.interrupt();
+    this.#set({ status: 'reconnecting', speaker: null });
+    const deadline = this.#options.now() + this.#options.reconnectWindowMs;
+    while (this.#statusIs('reconnecting')) {
+      try {
+        const connection = await this.#connect();
+        if (!this.#statusIs('reconnecting')) {
+          connection.close();
+          return;
+        }
+        this.#connection = connection;
+        this.#activeSince = this.#options.now();
+        this.#set({ status: 'active' });
+        log('reconectada');
+        return;
+      } catch (error) {
+        log(`tentativa de reconexão falhou: ${describe(error)}`);
+        const left = deadline - this.#options.now();
+        if (left <= 0) break;
+        await this.#options.retryWait(Math.min(RETRY_INTERVAL_MS, left));
+      }
+    }
+    if (this.#statusIs('reconnecting')) {
+      log('reconexão desistiu');
+      await this.#finish('disconnected');
+    }
   }
 
   #onMicChunk({ pcm, level }: MicrophoneChunk): void {
@@ -246,6 +392,35 @@ export class SessionController {
     if (level > this.#options.voiceThreshold) this.#lastVoiceAt = this.#options.now();
     this.#connection?.sendAudio(pcm);
     this.#updateSpeaker();
+    this.#checkSilence();
+  }
+
+  #markActivity(): void {
+    this.#lastActivityMs = this.elapsedMs();
+    this.#silencePrompted = false;
+  }
+
+  /**
+   * RF07: sem fala por um tempo, a IA pergunta se o usuário está ali; sem fala depois da
+   * pergunta, encerra e salva. Fala do usuário é o que a Live API transcreve (o volume do
+   * microfone sobe com qualquer ruído); a IA falando também conta (o tempo corre depois que
+   * ela termina). Usa o tempo de conversa, então pausas não contam.
+   */
+  #checkSilence(): void {
+    const elapsed = this.elapsedMs();
+    if (this.#output?.isPlaying) {
+      this.#lastActivityMs = elapsed;
+      return;
+    }
+    const silentMs = elapsed - this.#lastActivityMs;
+    const { promptAfterMs, endAfterPromptMs } = this.#options.silence;
+    if (!this.#silencePrompted && silentMs >= promptAfterMs) {
+      this.#silencePrompted = true;
+      this.#lastActivityMs = elapsed;
+      this.#connection?.sendText(this.#silenceCue);
+    } else if (this.#silencePrompted && silentMs >= endAfterPromptMs) {
+      void this.#finish('silence');
+    }
   }
 
   #onAiAudio(pcm: Int16Array): void {
@@ -311,6 +486,7 @@ export class SessionController {
       totalTokens: this.#totalTokens,
     };
     this.#result = result;
+    if (error) log(`encerrada (${reason}): ${error}`);
     this.#set({ status: 'ended', speaker: null, endReason: reason, error });
 
     await this.#closeConnection();
@@ -336,6 +512,11 @@ export class SessionController {
     }
   }
 
+  /** Lê o estado atual sem o estreitamento de tipo de antes de um `await`. */
+  #statusIs(status: SessionStatus): boolean {
+    return this.#snapshot.status === status;
+  }
+
   #isRunning(): boolean {
     const { status } = this.#snapshot;
     return status !== 'idle' && status !== 'ended';
@@ -344,6 +525,11 @@ export class SessionController {
   #reset(): void {
     this.#connectOptions = null;
     this.#resumeHandle = null;
+    this.#silenceCue = '';
+    this.#recapCue = () => '';
+    this.#lastActivityMs = 0;
+    this.#silencePrompted = false;
+    this.#handingOver = false;
     this.#startedAt = 0;
     this.#activeSince = null;
     this.#accumulatedMs = 0;
@@ -362,6 +548,49 @@ export class SessionController {
     this.#snapshot = { ...this.#snapshot, ...changes };
     for (const listener of this.#listeners) listener();
   }
+}
+
+/** Diagnóstico da conexão no console (logcat no aparelho): só eventos, nunca conteúdo. */
+function log(message: string): void {
+  console.info(`[conexão] ${message}`);
+}
+
+/** Rejeita se a promessa não resolver a tempo; uma conexão que abrir atrasada é fechada. */
+function withTimeout(
+  opening: Promise<ConversationConnection>,
+  ms: number,
+): Promise<ConversationConnection> {
+  return new Promise((resolve, reject) => {
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      reject(new Error('Tempo esgotado ao conectar'));
+    }, ms);
+    opening.then(
+      (connection) => {
+        clearTimeout(timer);
+        if (timedOut) connection.close();
+        else resolve(connection);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
+}
+
+/** Espera o intervalo, ou menos se o aparelho voltar a ficar online. */
+function waitForNetworkOrTimeout(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      window.removeEventListener('online', done);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    window.addEventListener('online', done);
+  });
 }
 
 /** Mantém o nome do erro (ex.: `NotAllowedError` do microfone) para a UI explicar a causa. */

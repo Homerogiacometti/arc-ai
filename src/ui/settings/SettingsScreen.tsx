@@ -5,12 +5,13 @@ import { VOICES, type Voice } from '../../config/voices';
 import { useSettingsStore } from '../../store/settings';
 import { useRestart } from '../app-flow';
 import { ConfirmButton } from '../ConfirmButton';
+import { BackupSection } from './BackupSection';
 import { useNavigation } from '../navigation';
 import { OptionList } from '../OptionList';
 import { ScreenHeader } from '../ScreenHeader';
 import { useUpdateSettings } from '../use-update-settings';
 
-/** RF16: chave de API, voz, tolerância a pausas, memória e apagar todos os dados. */
+/** RF16: chave de API, voz, tolerância a pausas, memória, backup e apagar todos os dados. */
 export function SettingsScreen() {
   const services = useServices();
   const { pauseLevel, voice } = useSettingsStore();
@@ -129,6 +130,8 @@ export function SettingsScreen() {
           />
         </div>
       </section>
+
+      <BackupSection />
 
       <section className="section" aria-labelledby="settings-erase">
         <h2 className="section__title" id="settings-erase">

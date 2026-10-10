@@ -53,6 +53,8 @@ export interface SessionRepository {
   get(id: number): Promise<SessionDetail | null>;
   saveFeedback(id: number, feedback: Feedback, meta: FeedbackMeta): Promise<void>;
   setFeedbackStatus(id: number, status: FeedbackStatus): Promise<void>;
+  /** RF15: o usuário reportou conteúdo inadequado desta sessão. */
+  markReported(id: number): Promise<void>;
 }
 
 const SUMMARY_COLUMNS =
@@ -167,6 +169,10 @@ export class SqlSessionRepository implements SessionRepository {
 
   async setFeedbackStatus(id: number, status: FeedbackStatus): Promise<void> {
     await this.#db.run('UPDATE sessions SET feedback_status = ? WHERE id = ?', [status, id]);
+  }
+
+  async markReported(id: number): Promise<void> {
+    await this.#db.run('UPDATE sessions SET reported = 1 WHERE id = ?', [id]);
   }
 }
 

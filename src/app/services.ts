@@ -8,6 +8,7 @@ import type { AudioInput, AudioOutput } from '../conversation/session-controller
 import type { ApiKeyStore } from '../secure/api-key-store';
 import { createApiKeyStore } from '../secure/create-api-key-store';
 import { validateApiKey, type ApiKeyValidation } from '../secure/validate-api-key';
+import { exportBackup, importBackup, type Backup } from '../storage/backup';
 import { eraseAllData } from '../storage/erase-all';
 import { SqlMemoryRepository, type MemoryRepository } from '../storage/memory-repository';
 import { openDatabase } from '../storage/open-database';
@@ -15,6 +16,7 @@ import { SqlPlanRepository, type PlanRepository } from '../storage/plan-reposito
 import { SqlProfileRepository, type ProfileRepository } from '../storage/profile-repository';
 import { SqlSessionRepository, type SessionRepository } from '../storage/session-repository';
 import { SqlSettingsRepository, type SettingsRepository } from '../storage/settings-repository';
+import { createDevice, type Device } from './device';
 import { createScreen, type Screen } from './screen';
 
 /** Dependências do app, injetadas pela UI (permite trocar por versões falsas nos testes). */
@@ -32,6 +34,9 @@ export interface Services {
   validateApiKey: (apiKey: string) => Promise<ApiKeyValidation>;
   /** Apaga todos os dados do app e a chave de API (RF16). */
   eraseAllData: () => Promise<void>;
+  /** Backup de todos os dados, sem a chave (RF14). */
+  backup: { export: () => Promise<Backup>; import: (backup: Backup) => Promise<void> };
+  device: Device;
   conversation: {
     provider: ConversationProvider;
     createInput: () => AudioInput;
@@ -55,6 +60,11 @@ export async function createServices(): Promise<Services> {
       await eraseAllData(db);
       await apiKeyStore.remove();
     },
+    backup: {
+      export: () => exportBackup(db),
+      import: (backup) => importBackup(db, backup),
+    },
+    device: createDevice(),
     conversation: {
       provider: lazyGeminiProvider(),
       createInput: () => new Microphone(),

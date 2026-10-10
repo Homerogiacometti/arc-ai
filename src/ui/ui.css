@@ -368,3 +368,26 @@ textarea.input {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.report {
+  margin-top: 32px;
+}
+
+.report--open {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.report__open {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
