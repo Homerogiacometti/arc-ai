@@ -75,3 +75,18 @@ select {
 a {
   color: var(--accent-text);
 }
+
+/*
+ * O app desenha atrás da barra de status (edge-to-edge). Esta faixa fica por cima do conteúdo
+ * rolado, que antes passava por baixo do relógio. É sempre preta porque os ícones da barra
+ * são claros, inclusive no tema claro.
+ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100;
+  height: env(safe-area-inset-top);
+  background: var(--color-black);
+  pointer-events: none;
+}
