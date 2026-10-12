@@ -332,7 +332,7 @@ describe('SessionController', () => {
   });
 
   describe('troca de conexão antes do limite (RF08)', () => {
-    it('abre a próxima com o handle e fecha a anterior, sem parar microfone nem cronômetro', async () => {
+    it('numa pausa, fecha a atual e só então retoma com o handle, sem parar microfone nem cronômetro', async () => {
       const t = setup();
       await t.start();
       const first = t.provider.current;
@@ -341,10 +341,30 @@ describe('SessionController', () => {
       first.events.onTranscript('user', 'Hello');
       t.advance(9 * 60_000);
 
-      first.events.onGoAway();
-      await vi.waitFor(() => {
+      // A IA está falando: a troca espera ela terminar.
+      first.events.onGoAway(30_000);
+      first.events.onAudio(new Int16Array(10));
+      mic.speak(0);
+      expect(t.provider.connections).toHaveLength(1);
+      expect(first.closed).toBe(false);
+
+      t.output().finishPlaying();
+      first.events.onTurnComplete();
+      t.advance(1_000);
+      let opened = false;
+      const real = t.provider.connect.bind(t.provider);
+      vi.spyOn(t.provider, 'connect').mockImplementation((options, events) => {
+        // A anterior já está fechada quando a nova abre (fluxo documentado da Live API).
         expect(first.closed).toBe(true);
+        opened = true;
+        return real(options, events);
       });
+      mic.speak(0);
+      await vi.waitFor(() => {
+        expect(opened).toBe(true);
+      });
+      // Deixa a abertura terminar (promessas pendentes) antes de falar de novo.
+      await new Promise((resolve) => setTimeout(resolve, 0));
       const second = t.provider.current;
       expect(second).not.toBe(first);
       expect(second.options.resumeHandle).toBe('h1');
@@ -360,7 +380,7 @@ describe('SessionController', () => {
       expect(second.sentAudio).toHaveLength(1);
       expect(t.controller.snapshot.status).toBe('active');
 
-      t.advance(60_000);
+      t.advance(59_000);
       await t.controller.stop();
       expect(t.ended.mock.calls[0]?.[0]).toMatchObject({
         durationMs: 10 * 60_000,
@@ -368,18 +388,59 @@ describe('SessionController', () => {
       });
     });
 
-    it('se a troca falhar, segue na conexão atual', async () => {
+    it('sem pausa, troca no fim do prazo e envia à nova o áudio do intervalo', async () => {
+      const t = setup();
+      await t.start();
+      const first = t.provider.current;
+      const mic = t.input();
+      first.events.onResumeHandle('h1');
+      first.events.onGoAway(10_000);
+      mic.speak(0.1);
+      expect(t.provider.connections).toHaveLength(1);
+
+      let release: () => void = () => undefined;
+      const real = t.provider.connect.bind(t.provider);
+      vi.spyOn(t.provider, 'connect').mockImplementation(
+        (options, events) =>
+          new Promise((resolve) => {
+            release = () => {
+              void real(options, events).then(resolve);
+            };
+          }),
+      );
+      t.advance(7_000);
+      mic.speak(0.1);
+      expect(first.closed).toBe(true);
+      expect(first.sentAudio).toHaveLength(2);
+      mic.speak(0.1);
+      mic.speak(0.1);
+      release();
+      await vi.waitFor(() => {
+        expect(t.provider.connections).toHaveLength(2);
+      });
+      await vi.waitFor(() => {
+        expect(t.provider.current.sentAudio).toHaveLength(2);
+      });
+      expect(t.controller.snapshot.status).toBe('active');
+    });
+
+    it('se a troca falhar, reconecta', async () => {
       const t = setup();
       await t.start();
       const first = t.provider.current;
       first.events.onResumeHandle('h1');
+      first.events.onGoAway(null);
       t.provider.failNext = new Error('busy');
-      first.events.onGoAway();
+      t.advance(1_000);
+      t.input().speak(0);
       await vi.waitFor(() => {
-        expect(t.provider.failNext).toBeNull();
+        expect(t.provider.connections).toHaveLength(2);
       });
-      expect(first.closed).toBe(false);
-      expect(t.controller.snapshot.status).toBe('active');
+      expect(first.closed).toBe(true);
+      await vi.waitFor(() => {
+        expect(t.controller.snapshot.status).toBe('active');
+      });
+      expect(t.provider.current.options.resumeHandle).toBe('h1');
     });
   });
 

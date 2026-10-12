@@ -90,6 +90,14 @@ const RECONNECT_WINDOW_MS = 45_000;
 const RETRY_INTERVAL_MS = 2_000;
 /** Depois de falar, o indicador "usuário" fica aceso por este tempo. */
 const SPEAKING_HOLD_MS = 400;
+/** Prazo do goAway quando o servidor não informa `timeLeft`. */
+const DEFAULT_GO_AWAY_MS = 10_000;
+/** A troca forçada acontece este tempo antes do fim do prazo do goAway. */
+const HAND_OVER_MARGIN_MS = 3_000;
+/** Sem voz do usuário por este tempo (e a IA calada) conta como pausa para trocar. */
+const HAND_OVER_QUIET_MS = 700;
+/** Limite do áudio guardado durante a troca (~10 s em pacotes de 40 ms). */
+const MAX_PENDING_CHUNKS = 250;
 
 /**
  * Coordena uma sessão de conversa: microfone → provedor → alto-falante, cronômetro,
@@ -113,6 +121,10 @@ export class SessionController {
   #lastActivityMs = 0;
   #silencePrompted = false;
   #handingOver = false;
+  /** Depois de um goAway: até quando esperar uma pausa na conversa para trocar de conexão. */
+  #handOverDeadline: number | null = null;
+  /** Áudio do microfone durante a troca, enviado à nova conexão quando ela abrir. */
+  #pendingAudio: Int16Array[] = [];
 
   #startedAt = 0;
   #activeSince: number | null = null;
@@ -292,10 +304,10 @@ export class SessionController {
       onResumeHandle: (handle) => {
         this.#resumeHandle = handle;
       },
-      onGoAway: () => {
+      onGoAway: (timeLeftMs) => {
         if (!current()) return;
-        log('aviso de fim de conexão (goAway)');
-        void this.#handOver();
+        log(`aviso de fim de conexão (goAway, ${String(timeLeftMs ?? '?')} ms)`);
+        this.#scheduleHandOver(timeLeftMs);
       },
       onUsage: (totalTokens) => {
         // Soma por mensagem: o total de cada geração (contexto + resposta), como é cobrado.
@@ -321,12 +333,39 @@ export class SessionController {
   }
 
   /**
-   * RF08: o servidor avisou que vai fechar a conexão (~10 min). Abre a próxima com o handle
-   * antes de fechar a atual, sem parar o microfone nem o cronômetro.
+   * RF08: o servidor avisou que vai fechar a conexão (~10 min). A troca espera uma pausa na
+   * conversa (ou o fim do prazo) e é feita em `#onMicChunk`, que roda a cada pacote do microfone.
+   */
+  #scheduleHandOver(timeLeftMs: number | null): void {
+    if (this.#handOverDeadline !== null) return;
+    const margin = (timeLeftMs ?? DEFAULT_GO_AWAY_MS) - HAND_OVER_MARGIN_MS;
+    this.#handOverDeadline = this.#options.now() + Math.max(0, margin);
+  }
+
+  /** Troca quando ninguém está falando; no fim do prazo, troca de qualquer jeito. */
+  #maybeHandOver(): void {
+    if (this.#handOverDeadline === null || this.#handingOver) return;
+    const now = this.#options.now();
+    const quiet =
+      !this.#output?.isPlaying &&
+      !this.#aiAudioStartedThisTurn &&
+      now - this.#lastVoiceAt >= HAND_OVER_QUIET_MS;
+    if (quiet || now >= this.#handOverDeadline) void this.#handOver();
+  }
+
+  /**
+   * Fecha a conexão atual e só então retoma com o handle numa nova, como a Live API documenta:
+   * abrir a nova com a antiga ainda aberta deixava a sessão retomada surda ao microfone. O
+   * microfone e o cronômetro seguem; o áudio do intervalo é guardado e enviado à nova conexão.
    */
   async #handOver(): Promise<void> {
-    if (this.#handingOver || this.#snapshot.status !== 'active' || !this.#resumeHandle) return;
+    if (this.#handingOver || !this.#statusIs('active')) return;
+    this.#handOverDeadline = null;
+    if (!this.#resumeHandle) return;
     this.#handingOver = true;
+    const previous = this.#connection;
+    this.#connection = null;
+    previous?.close();
     try {
       const next = await this.#connect();
       // O usuário pode ter parado ou pausado enquanto a conexão abria.
@@ -334,15 +373,15 @@ export class SessionController {
         next.close();
         return;
       }
-      const previous = this.#connection;
       this.#connection = next;
-      previous?.close();
+      for (const pcm of this.#pendingAudio) next.sendAudio(pcm);
       log('conexão trocada');
     } catch (error) {
-      // Se não deu para trocar, a queda da conexão atual cai em #reconnect.
       log(`troca falhou: ${describe(error)}`);
+      if (this.#statusIs('active')) void this.#reconnect();
     } finally {
       this.#handingOver = false;
+      this.#pendingAudio = [];
     }
   }
 
@@ -351,6 +390,7 @@ export class SessionController {
    * dentro de uma janela de tempo; se não der, encerra e salva o que houver.
    */
   async #reconnect(): Promise<void> {
+    this.#handOverDeadline = null;
     const previous = this.#connection;
     this.#connection = null;
     previous?.close();
@@ -390,9 +430,14 @@ export class SessionController {
   #onMicChunk({ pcm, level }: MicrophoneChunk): void {
     if (this.#snapshot.status !== 'active') return;
     if (level > this.#options.voiceThreshold) this.#lastVoiceAt = this.#options.now();
-    this.#connection?.sendAudio(pcm);
+    if (this.#connection) {
+      this.#connection.sendAudio(pcm);
+    } else if (this.#handingOver && this.#pendingAudio.length < MAX_PENDING_CHUNKS) {
+      this.#pendingAudio.push(pcm);
+    }
     this.#updateSpeaker();
     this.#checkSilence();
+    this.#maybeHandOver();
   }
 
   #markActivity(): void {
@@ -530,6 +575,8 @@ export class SessionController {
     this.#lastActivityMs = 0;
     this.#silencePrompted = false;
     this.#handingOver = false;
+    this.#handOverDeadline = null;
+    this.#pendingAudio = [];
     this.#startedAt = 0;
     this.#activeSince = null;
     this.#accumulatedMs = 0;

@@ -1,7 +1,12 @@
 import type { LiveServerMessage } from '@google/genai';
 import { pcm16ToBase64 } from '../audio/pcm';
 import type { ConversationEvents } from './provider';
-import { buildLiveConfig, dispatchServerMessage, END_SESSION_TOOL } from './gemini-live-provider';
+import {
+  buildLiveConfig,
+  dispatchServerMessage,
+  END_SESSION_TOOL,
+  parseDurationMs,
+} from './gemini-live-provider';
 
 function events() {
   return {
@@ -95,7 +100,14 @@ describe('dispatchServerMessage', () => {
     dispatch({ sessionResumptionUpdate: { newHandle: 'y', resumable: true } }, handlers);
     dispatch({ goAway: { timeLeft: '10s' }, usageMetadata: { totalTokenCount: 42 } }, handlers);
     expect(handlers.onResumeHandle).toHaveBeenCalledExactlyOnceWith('y');
-    expect(handlers.onGoAway).toHaveBeenCalledOnce();
+    expect(handlers.onGoAway).toHaveBeenCalledWith(10_000);
     expect(handlers.onUsage).toHaveBeenCalledWith(42);
+  });
+
+  it('converte o prazo do goAway em milissegundos', () => {
+    expect(parseDurationMs('10s')).toBe(10_000);
+    expect(parseDurationMs('9.5s')).toBe(9_500);
+    expect(parseDurationMs(undefined)).toBeNull();
+    expect(parseDurationMs('abc')).toBeNull();
   });
 });

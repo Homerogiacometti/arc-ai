@@ -72,7 +72,7 @@ export function dispatchServerMessage(
 
   const update = message.sessionResumptionUpdate;
   if (update?.resumable && update.newHandle) events.onResumeHandle(update.newHandle);
-  if (message.goAway) events.onGoAway();
+  if (message.goAway) events.onGoAway(parseDurationMs(message.goAway.timeLeft));
   if (message.usageMetadata?.totalTokenCount !== undefined) {
     events.onUsage(message.usageMetadata.totalTokenCount);
   }
@@ -157,4 +157,10 @@ const POLICY_VIOLATION = 1008;
 
 function closeReason(event: CloseEvent): string {
   return `fechada (${String(event.code)}) ${event.reason}`.trim();
+}
+
+/** Converte uma duração do protobuf em JSON (ex.: `"10s"`, `"9.5s"`) em milissegundos. */
+export function parseDurationMs(duration: string | undefined): number | null {
+  const match = /^(\d+(?:\.\d+)?)s$/.exec(duration ?? '');
+  return match ? Math.round(Number(match[1]) * 1000) : null;
 }

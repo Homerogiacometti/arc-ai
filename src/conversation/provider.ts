@@ -28,8 +28,11 @@ export interface ConversationEvents {
   onEndRequested(): void;
   /** Novo handle para retomar a conversa depois. */
   onResumeHandle(handle: string): void;
-  /** O servidor avisou que vai encerrar a conexão em breve (limite de ~10 min). */
-  onGoAway(): void;
+  /**
+   * O servidor avisou que vai encerrar a conexão em breve (limite de ~10 min); `timeLeftMs` é o
+   * prazo informado, quando vier.
+   */
+  onGoAway(timeLeftMs: number | null): void;
   /** Total de tokens informado pelo servidor (RNF04). */
   onUsage(totalTokens: number): void;
   /** A conexão caiu sem `close()` do app; `reason` traz o código e o motivo, para diagnóstico. */
