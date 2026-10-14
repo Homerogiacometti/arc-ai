@@ -21,12 +21,14 @@ interface Loaded {
   skills: SkillScore[];
 }
 
-/** Avaliação (M9.1): nível estimado ao longo das conversas e mapa de pontos fortes e fracos. */
+/**
+ * Avaliação (M9.1): nível estimado ao longo das conversas e mapa de pontos fortes e fracos,
+ * do idioma atual.
+ */
 export function EvaluationScreen() {
   const { sessions, profiles } = useServices();
-  const currentLanguage = useSettingsStore((state) => state.languageCode);
+  const languageCode = useSettingsStore((state) => state.languageCode);
   const id = useId();
-  const [languageCode, setLanguageCode] = useState<string>(currentLanguage);
   const [learning, setLearning] = useState<LearnerProfile[]>([]);
   const [data, setData] = useState<Loaded | null>(null);
 
@@ -57,32 +59,7 @@ export function EvaluationScreen() {
 
   return (
     <main className="screen">
-      <ScreenHeader title="Avaliação" />
-
-      {learning.length > 1 && (
-        <div className="field evaluation__language">
-          <label className="field__label" htmlFor={`${id}-language`}>
-            Idioma
-          </label>
-          <select
-            id={`${id}-language`}
-            className="input"
-            value={languageCode}
-            onChange={(event) => {
-              setLanguageCode(event.target.value);
-            }}
-          >
-            {learning.map((profile) => {
-              const item = findLanguage(profile.languageCode);
-              return (
-                <option key={profile.languageCode} value={profile.languageCode}>
-                  {item?.flag} {item?.label}
-                </option>
-              );
-            })}
-          </select>
-        </div>
-      )}
+      <ScreenHeader title="Avaliação" languageSwitch />
 
       {ready === null && <p className="screen__text">Carregando…</p>}
 

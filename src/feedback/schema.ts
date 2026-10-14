@@ -35,6 +35,16 @@ const skills = z
   )
   .describe('Habilidades com evidência clara nesta conversa: strong = usou bem, weak = errou.');
 
+const topics = z
+  .array(text)
+  .describe('De 1 a 3 assuntos da conversa, em português, cada um em poucas palavras.');
+
+const followUp = z
+  .array(text)
+  .describe(
+    'De 0 a 2 ganchos para a próxima conversa, em português: algo que ficou em aberto ou que o aluno vai fazer e dá para perguntar como foi.',
+  );
+
 /** Feedback de fim de sessão (RF10). Textos explicativos em português. */
 export const feedbackSchema = z.object({
   summary: text.describe('Resumo da conversa em português, 2 a 4 frases.'),
@@ -69,6 +79,9 @@ export const feedbackSchema = z.object({
     })
     .describe('Estimativa de nível com base apenas nesta conversa.'),
   skills: skills.optional(),
+  // Opcionais no que fica salvo: feedbacks anteriores ao prompt v4 não têm.
+  topics: topics.optional(),
+  followUp: followUp.optional(),
 });
 
 export type Feedback = z.infer<typeof feedbackSchema>;
@@ -78,9 +91,11 @@ export type Feedback = z.infer<typeof feedbackSchema>;
  * é salvo junto da sessão; a memória vai para a tabela própria.
  */
 export const feedbackResponseSchema = feedbackSchema.extend({
-  // Na resposta do modelo, nível com progresso e habilidades são obrigatórios.
+  // Na resposta do modelo, nível com progresso, habilidades, assuntos e ganchos são obrigatórios.
   level: feedbackSchema.shape.level.extend({ progress: levelProgress }),
   skills,
+  topics,
+  followUp,
   memory: memoryUpdateSchema.describe(
     'Memória do aluno atualizada com esta conversa: as três listas completas, já mescladas.',
   ),

@@ -8,13 +8,14 @@ import { useSettingsStore } from '../../store/settings';
 import { useRestart } from '../app-flow';
 import { ConfirmButton } from '../ConfirmButton';
 import { BackupSection } from './BackupSection';
+import { ConversationStyleSection } from './ConversationStyleSection';
 import { useNavigation } from '../navigation';
 import { OptionList } from '../OptionList';
 import { ScreenHeader } from '../ScreenHeader';
 import { useUpdateSettings } from '../use-update-settings';
 
 /**
- * RF16: chave de API, voz, modo de resposta (RF06), tolerância a pausas, aparência, backup e
+ * RF16: chave de API, voz, modo de resposta (RF06), estilo de conversa, tolerância a pausas, aparência, backup e
  * apagar todos os dados.
  */
 export function SettingsScreen() {
@@ -107,6 +108,12 @@ export function SettingsScreen() {
           rápido gasta menos tokens e deixa você falar mais.
         </p>
       </section>
+
+      <ConversationStyleSection
+        onError={() => {
+          setError(true);
+        }}
+      />
 
       <section className="section">
         <OptionList

@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  CONVERSATION_STYLES,
+  CUSTOM_INSTRUCTIONS_MAX_LENGTH,
+  DEFAULT_CONVERSATION_STYLE,
+} from './conversation-styles';
 import { DEFAULT_LANGUAGE, LANGUAGES } from './languages';
 import { DEFAULT_PAUSE_LEVEL, PAUSE_LEVELS } from './pause-levels';
 import { DEFAULT_RESPONSE_MODE, RESPONSE_MODES } from './response-modes';
@@ -15,6 +20,8 @@ export const settingsSchema = z.object({
   pauseLevel: z.enum(keysOf(PAUSE_LEVELS)),
   voice: z.enum(keysOf(VOICES)),
   theme: z.enum(keysOf(THEMES)),
+  conversationStyle: z.enum(keysOf(CONVERSATION_STYLES)),
+  customInstructions: z.string().trim().max(CUSTOM_INSTRUCTIONS_MAX_LENGTH),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
@@ -25,4 +32,6 @@ export const DEFAULT_SETTINGS: Settings = {
   pauseLevel: DEFAULT_PAUSE_LEVEL,
   voice: DEFAULT_VOICE,
   theme: DEFAULT_THEME,
+  conversationStyle: DEFAULT_CONVERSATION_STYLE,
+  customInstructions: '',
 };

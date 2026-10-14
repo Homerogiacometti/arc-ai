@@ -135,4 +135,70 @@ describe('SqlSessionRepository', () => {
     expect(list.map((item) => item.sessionId)).toEqual([first, second]);
     expect(list[0]?.feedback).toEqual(SAMPLE_FEEDBACK);
   });
+
+  it('filtra a lista por idioma', async () => {
+    const repository = new SqlSessionRepository(await createTestDatabase());
+    const english = await repository.create(session());
+    await repository.create(session({ languageCode: 'es-ES' }));
+    const list = await repository.list({ languageCode: 'en-US', limit: 10 });
+    expect(list.map((item) => item.id)).toEqual([english]);
+  });
+
+  describe('lastContext', () => {
+    it('é null sem conversas no idioma', async () => {
+      const repository = new SqlSessionRepository(await createTestDatabase());
+      await repository.create(session({ languageCode: 'es-ES' }));
+      expect(await repository.lastContext('en-US')).toBeNull();
+    });
+
+    it('traz a última conversa do idioma, a abertura, o fim e os assuntos recentes', async () => {
+      const repository = new SqlSessionRepository(await createTestDatabase());
+      const older = await repository.create(session({ startedAt: new Date(2026, 9, 1, 10) }));
+      await repository.saveFeedback(
+        older,
+        { ...SAMPLE_FEEDBACK, topics: ['trabalho', 'viagem à praia'] },
+        { model: 'm', promptVersion: 4 },
+      );
+      const turns = Array.from({ length: 10 }, (_, index) => ({
+        speaker: index % 2 === 0 ? ('ai' as const) : ('user' as const),
+        text: `fala ${String(index)}`,
+      }));
+      const last = await repository.create(
+        session({ startedAt: new Date(2026, 9, 3, 10), transcript: turns }),
+      );
+      await repository.saveFeedback(last, SAMPLE_FEEDBACK, { model: 'm', promptVersion: 4 });
+      // Outro idioma e conversa sem fala do usuário não contam.
+      await repository.create(session({ languageCode: 'es-ES', startedAt: new Date(2026, 9, 4) }));
+      await repository.create(
+        session({ startedAt: new Date(2026, 9, 5), feedbackStatus: 'skipped' }),
+      );
+
+      const context = await repository.lastContext('en-US');
+      expect(context).toMatchObject({
+        startedAt: new Date(2026, 9, 3, 10),
+        firstAiTurn: 'fala 0',
+        recentTopics: ['viagem à praia', 'trabalho'],
+      });
+      expect(context?.feedback?.followUp).toEqual(SAMPLE_FEEDBACK.followUp);
+      expect(context?.lastTurns.map((turn) => turn.text)).toEqual([
+        'fala 4',
+        'fala 5',
+        'fala 6',
+        'fala 7',
+        'fala 8',
+        'fala 9',
+      ]);
+    });
+
+    it('funciona sem feedback e sem transcrição', async () => {
+      const repository = new SqlSessionRepository(await createTestDatabase());
+      await repository.create(session({ transcript: [] }));
+      expect(await repository.lastContext('en-US')).toMatchObject({
+        feedback: null,
+        firstAiTurn: null,
+        lastTurns: [],
+        recentTopics: [],
+      });
+    });
+  });
 });

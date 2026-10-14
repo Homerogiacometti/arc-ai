@@ -56,7 +56,9 @@ describe('PlanScreen', () => {
     expect(await screen.findByText('2 dias por semana · 15 min por dia')).toBeInTheDocument();
     expect(todayCell()).toHaveAccessibleName(/feito, 15 min$/);
     expect(screen.getByRole('status')).toHaveTextContent('1 de 2 dias · 15 min no total.');
-    expect(await services.plans.list()).toMatchObject([{ daysPerWeek: 2, minutesPerDay: 15 }]);
+    expect(await services.plans.list('en-US')).toMatchObject([
+      { daysPerWeek: 2, minutesPerDay: 15 },
+    ]);
   });
 
   it('abaixo da meta o dia fica parcial; editar o plano vale para a semana atual', async () => {
@@ -78,5 +80,23 @@ describe('PlanScreen', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Meta da semana cumprida');
     expect(screen.getByText('semana cumprida')).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'Minutos por semana' })).toHaveTextContent('10');
+  });
+
+  it('cada idioma tem o seu plano e conta só as conversas dele', async () => {
+    const { user, services } = await openPlan([20]);
+    await services.profiles.save({ languageCode: 'es-ES', level: 'beginner' });
+    await services.plans.save('es-ES', { daysPerWeek: 1, minutesPerDay: 10 });
+    await user.click(await screen.findByLabelText('20 min'));
+    await user.click(screen.getByRole('button', { name: 'Criar plano' }));
+    expect(await screen.findByText('3 dias por semana · 20 min por dia')).toBeInTheDocument();
+    expect(todayCell()).toHaveAccessibleName(/feito, 20 min$/);
+
+    // Volta e entra de novo para a tela recarregar a lista de idiomas.
+    await user.click(screen.getByRole('button', { name: '← Voltar' }));
+    await user.click(screen.getByRole('button', { name: 'Plano de estudo' }));
+    await user.click(await screen.findByRole('button', { name: 'Praticar Espanhol' }));
+    expect(await screen.findByText('1 dia por semana · 10 min por dia')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Meta em Espanhol' })).toBeInTheDocument();
+    expect(todayCell()).toHaveAccessibleName(/, 0 min$/);
   });
 });

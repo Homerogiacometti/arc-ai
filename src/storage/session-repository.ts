@@ -49,6 +49,19 @@ export interface DatedFeedback {
   feedback: Feedback;
 }
 
+/** A conversa anterior num idioma, para a próxima continuar dela (v3). */
+export interface LastSessionContext {
+  startedAt: Date;
+  /** Feedback salvo, quando já existe (traz resumo, assuntos e ganchos). */
+  feedback: Feedback | null;
+  /** Primeira fala da IA, para ela não abrir do mesmo jeito; null sem transcrição. */
+  firstAiTurn: string | null;
+  /** Últimas falas, da mais antiga à mais recente; vazio sem transcrição. */
+  lastTurns: TranscriptEntry[];
+  /** Assuntos das conversas recentes do idioma, da mais recente à mais antiga, sem repetir. */
+  recentTopics: string[];
+}
+
 export interface FeedbackMeta {
   model: string;
   promptVersion: number;
@@ -56,8 +69,8 @@ export interface FeedbackMeta {
 
 export interface SessionRepository {
   create(session: NewSession): Promise<number>;
-  /** Sessões da mais recente à mais antiga; `limit` corta a lista. */
-  list(options?: { limit?: number }): Promise<SessionSummary[]>;
+  /** Sessões da mais recente à mais antiga; `limit` corta a lista e `languageCode` filtra. */
+  list(options?: { limit?: number; languageCode?: string }): Promise<SessionSummary[]>;
   get(id: number): Promise<SessionDetail | null>;
   saveFeedback(id: number, feedback: Feedback, meta: FeedbackMeta): Promise<void>;
   setFeedbackStatus(id: number, status: FeedbackStatus): Promise<void>;
@@ -65,6 +78,8 @@ export interface SessionRepository {
   markReported(id: number): Promise<void>;
   /** Feedbacks válidos de um idioma, do mais antigo ao mais recente. */
   listFeedbacks(languageCode: string): Promise<DatedFeedback[]>;
+  /** A conversa mais recente do idioma, ou null quando ainda não há nenhuma. */
+  lastContext(languageCode: string): Promise<LastSessionContext | null>;
   /**
    * Apaga a transcrição das sessões fora das `keep` mais recentes, mantendo duração e
    * feedback. Sessões com feedback pendente ou que falhou ficam com a transcrição para poder
@@ -72,6 +87,9 @@ export interface SessionRepository {
    */
   pruneTranscripts(keep: number): Promise<void>;
 }
+
+/** Quanto da conversa anterior a próxima recebe. */
+const CONTEXT = { topicSessions: 5, lastTurns: 6 } as const;
 
 const SUMMARY_COLUMNS =
   'id, language_code, response_mode, started_at, duration_ms, feedback_status';
@@ -122,13 +140,21 @@ export class SqlSessionRepository implements SessionRepository {
     }
   }
 
-  async list({ limit }: { limit?: number } = {}): Promise<SessionSummary[]> {
-    const rows = await this.#db.query(
-      `SELECT ${SUMMARY_COLUMNS} FROM sessions ORDER BY started_at DESC, id DESC${
-        limit === undefined ? '' : ' LIMIT ?'
-      }`,
-      limit === undefined ? [] : [limit],
-    );
+  async list({ limit, languageCode }: { limit?: number; languageCode?: string } = {}): Promise<
+    SessionSummary[]
+  > {
+    const params: (string | number)[] = [];
+    let sql = `SELECT ${SUMMARY_COLUMNS} FROM sessions`;
+    if (languageCode !== undefined) {
+      sql += ' WHERE language_code = ?';
+      params.push(languageCode);
+    }
+    sql += ' ORDER BY started_at DESC, id DESC';
+    if (limit !== undefined) {
+      sql += ' LIMIT ?';
+      params.push(limit);
+    }
+    const rows = await this.#db.query(sql, params);
     return rows.map(toSummary);
   }
 
@@ -208,6 +234,42 @@ export class SqlSessionRepository implements SessionRepository {
         ? [{ sessionId: Number(row.id), startedAt: new Date(String(row.started_at)), feedback }]
         : [];
     });
+  }
+
+  async lastContext(languageCode: string): Promise<LastSessionContext | null> {
+    const rows = await this.#db.query(
+      `SELECT s.id, s.started_at, f.data FROM sessions s
+       LEFT JOIN feedbacks f ON f.session_id = s.id
+       WHERE s.language_code = ? AND s.feedback_status <> 'skipped'
+       ORDER BY s.started_at DESC, s.id DESC LIMIT ?`,
+      [languageCode, CONTEXT.topicSessions],
+    );
+    const [last] = rows;
+    if (!last) return null;
+    const turns = await this.#db.query(
+      'SELECT speaker, text FROM transcript_turns WHERE session_id = ? ORDER BY position',
+      [Number(last.id)],
+    );
+    const transcript = turns.map((turn): TranscriptEntry => ({
+      speaker: turn.speaker === 'ai' ? 'ai' : 'user',
+      text: String(turn.text),
+    }));
+    const seen = new Set<string>();
+    const recentTopics = rows
+      .flatMap((row) => parseFeedback(row.data)?.topics ?? [])
+      .filter((topic) => {
+        const key = topic.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    return {
+      startedAt: new Date(String(last.started_at)),
+      feedback: parseFeedback(last.data),
+      firstAiTurn: transcript.find((turn) => turn.speaker === 'ai')?.text ?? null,
+      lastTurns: transcript.slice(-CONTEXT.lastTurns),
+      recentTopics,
+    };
   }
 
   async pruneTranscripts(keep: number): Promise<void> {

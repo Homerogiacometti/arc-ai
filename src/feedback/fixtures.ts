@@ -28,6 +28,8 @@ export const SAMPLE_FEEDBACK: Feedback = {
     { skill: 'past', evaluation: 'weak' },
     { skill: 'fluency', evaluation: 'strong' },
   ],
+  topics: ['viagem à praia'],
+  followUp: ['vai voltar à praia no próximo feriado'],
 };
 
 /** Resposta válida do modelo para testes: o feedback e a memória atualizada. */
@@ -35,6 +37,8 @@ export const SAMPLE_RESPONSE: FeedbackResponse = {
   ...SAMPLE_FEEDBACK,
   level: { ...SAMPLE_FEEDBACK.level, progress: 40 },
   skills: SAMPLE_FEEDBACK.skills ?? [],
+  topics: SAMPLE_FEEDBACK.topics ?? [],
+  followUp: SAMPLE_FEEDBACK.followUp ?? [],
   memory: {
     personal: ['Foi à praia no fim de semana'],
     mistakes: ['Usa presente no lugar do passado ("I go" por "I went")'],

@@ -114,7 +114,44 @@ export const MIGRATIONS: readonly Migration[] = [
        FROM learner_profile p JOIN settings s ON s.id = 1 AND s.language_code = p.language_code`,
     ],
   },
+  {
+    // v3: plano de estudo por idioma (o plano único vale para cada idioma aprendido) e estilo
+    // de conversa.
+    version: 7,
+    statements: [
+      `CREATE TABLE practice_plan_by_language (
+        language_code TEXT NOT NULL,
+        valid_from TEXT NOT NULL,
+        days_per_week INTEGER NOT NULL CHECK (days_per_week BETWEEN 1 AND 7),
+        minutes_per_day INTEGER NOT NULL CHECK (minutes_per_day BETWEEN 1 AND 240),
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (language_code, valid_from)
+      )`,
+      `INSERT INTO practice_plan_by_language
+         (language_code, valid_from, days_per_week, minutes_per_day, updated_at)
+       SELECT l.language_code, p.valid_from, p.days_per_week, p.minutes_per_day, p.updated_at
+       FROM practice_plan p
+       CROSS JOIN (SELECT language_code FROM learner_profile
+                   UNION SELECT language_code FROM settings) l`,
+      'DROP TABLE practice_plan',
+      'ALTER TABLE practice_plan_by_language RENAME TO practice_plan',
+      "ALTER TABLE settings ADD COLUMN conversation_style TEXT NOT NULL DEFAULT 'balanced'",
+      "ALTER TABLE settings ADD COLUMN custom_instructions TEXT NOT NULL DEFAULT ''",
+    ],
+  },
 ];
+
+/**
+ * Backups anteriores à migration 7 têm um plano só, sem idioma: ele passa a valer para cada
+ * idioma do backup (perfis e idioma atual), como na própria migration.
+ */
+export function planRowsByLanguage(
+  plans: readonly Record<string, string | number | null>[],
+  languageCodes: readonly string[],
+): Record<string, string | number | null>[] {
+  const codes = [...new Set(languageCodes)];
+  return plans.flatMap((plan) => codes.map((code) => ({ ...plan, language_code: code })));
+}
 
 /**
  * Preenche learner_info com os interesses do perfil do idioma atual. Usado ao importar um

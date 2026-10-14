@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useServices } from '../../app/services-context';
+import { findLanguage } from '../../config/languages';
 import { computeProgress, type PlanGoal, type PracticePlan, type Progress } from '../../plan/plan';
+import { useSettingsStore } from '../../store/settings';
 import { ScreenHeader } from '../ScreenHeader';
 import { PlanForm } from './PlanForm';
 import { WeekView } from './WeekView';
@@ -8,20 +10,29 @@ import { WeeklyChart } from './WeeklyChart';
 import './Plan.css';
 
 interface Loaded {
+  languageCode: string;
   plans: PracticePlan[];
   progress: Progress;
 }
 
-/** RF13: plano de estudo semanal editável, semana atual e constância. */
+/** RF13: plano de estudo semanal editável, semana atual e constância, por idioma (v3). */
 export function PlanScreen() {
   const { plans, sessions } = useServices();
+  const languageCode = useSettingsStore((state) => state.languageCode);
   const [data, setData] = useState<Loaded | null>(null);
   const [editing, setEditing] = useState(false);
 
   const load = useCallback(async () => {
-    const [planList, sessionList] = await Promise.all([plans.list(), sessions.list()]);
-    return { plans: planList, progress: computeProgress(sessionList, planList, new Date()) };
-  }, [plans, sessions]);
+    const [planList, sessionList] = await Promise.all([
+      plans.list(languageCode),
+      sessions.list({ languageCode }),
+    ]);
+    return {
+      languageCode,
+      plans: planList,
+      progress: computeProgress(sessionList, planList, new Date()),
+    };
+  }, [plans, sessions, languageCode]);
 
   useEffect(() => {
     let active = true;
@@ -34,33 +45,37 @@ export function PlanScreen() {
   }, [load]);
 
   const save = async (goal: PlanGoal) => {
-    await plans.save(goal);
+    await plans.save(languageCode, goal);
     setData(await load());
     setEditing(false);
   };
 
-  const goal = data?.progress.current.plan ?? null;
+  // Depois de trocar o idioma, o plano do anterior não aparece enquanto o novo carrega.
+  const ready = data?.languageCode === languageCode ? data : null;
+  const goal = ready?.progress.current.plan ?? null;
+  const label = findLanguage(languageCode)?.label ?? 'este idioma';
 
   return (
     <main className="screen">
-      <ScreenHeader title="Plano de estudo" />
-      {data === null && <p className="screen__text">Carregando…</p>}
+      <ScreenHeader title="Plano de estudo" languageSwitch />
+      {ready === null && <p className="screen__text">Carregando…</p>}
 
-      {data && !goal && (
+      {ready && !goal && (
         <>
           <p className="screen__text">
-            Defina quantos dias por semana e quantos minutos por dia você quer praticar. O dia fica
-            marcado sozinho quando a soma das conversas atinge a meta.
+            Defina quantos dias por semana e quantos minutos por dia você quer praticar. Cada idioma
+            tem o seu plano; este vale para {label}. O dia fica marcado sozinho quando a soma das
+            conversas nesse idioma atinge a meta.
           </p>
           <PlanForm submitLabel="Criar plano" onSubmit={save} />
         </>
       )}
 
-      {data && goal && (
+      {ready && goal && (
         <>
           <section className="section" aria-labelledby="plan-goal">
             <h2 className="section__title" id="plan-goal">
-              Meta
+              Meta em {label}
             </h2>
             {editing ? (
               <PlanForm
@@ -90,7 +105,7 @@ export function PlanScreen() {
             )}
           </section>
 
-          <WeekView week={data.progress.current} />
+          <WeekView week={ready.progress.current} />
 
           <section className="section" aria-labelledby="plan-evolution">
             <h2 className="section__title" id="plan-evolution">
@@ -98,19 +113,19 @@ export function PlanScreen() {
             </h2>
             <div className="plan__tiles">
               <div className="plan__tile">
-                <span className="plan__tile-value">{data.progress.weeksMet}</span>
+                <span className="plan__tile-value">{ready.progress.weeksMet}</span>
                 <span className="plan__tile-label">
-                  {data.progress.weeksMet === 1 ? 'semana cumprida' : 'semanas cumpridas'}
+                  {ready.progress.weeksMet === 1 ? 'semana cumprida' : 'semanas cumpridas'}
                 </span>
               </div>
               <div className="plan__tile">
-                <span className="plan__tile-value">{data.progress.streak}</span>
+                <span className="plan__tile-value">{ready.progress.streak}</span>
                 <span className="plan__tile-label">
-                  {data.progress.streak === 1 ? 'semana seguida' : 'semanas seguidas'} na meta
+                  {ready.progress.streak === 1 ? 'semana seguida' : 'semanas seguidas'} na meta
                 </span>
               </div>
             </div>
-            <WeeklyChart weeks={data.progress.recent} />
+            <WeeklyChart weeks={ready.progress.recent} />
           </section>
         </>
       )}

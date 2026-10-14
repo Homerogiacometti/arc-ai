@@ -21,6 +21,39 @@ describe('migrations', () => {
     expect(rows).toHaveLength(MIGRATIONS.length);
   });
 
+  it('7: o plano único passa a valer para cada idioma aprendido', async () => {
+    const db = await createTestDatabase({ migrate: false });
+    await migrate(
+      db,
+      MIGRATIONS.filter((migration) => migration.version <= 6),
+    );
+    await db.run(
+      "INSERT INTO settings (id, language_code, response_mode, pause_level) VALUES (1, 'en-US', 'quick', 'medium')",
+    );
+    for (const code of ['en-US', 'es-ES']) {
+      await db.run(
+        "INSERT INTO learner_profile (language_code, level, updated_at) VALUES (?, 'beginner', 'x')",
+        [code],
+      );
+    }
+    await db.run(
+      "INSERT INTO practice_plan (valid_from, days_per_week, minutes_per_day, updated_at) VALUES ('2026-10-01', 3, 20, 'x')",
+    );
+
+    await migrate(db);
+    const rows = await db.query(
+      'SELECT language_code, valid_from, days_per_week FROM practice_plan ORDER BY language_code',
+    );
+    expect(rows).toEqual([
+      { language_code: 'en-US', valid_from: '2026-10-01', days_per_week: 3 },
+      { language_code: 'es-ES', valid_from: '2026-10-01', days_per_week: 3 },
+    ]);
+    const [settings] = await db.query(
+      'SELECT conversation_style, custom_instructions FROM settings',
+    );
+    expect(settings).toEqual({ conversation_style: 'balanced', custom_instructions: '' });
+  });
+
   it('desfaz a migration inteira quando um comando falha', async () => {
     const db = await createTestDatabase();
     const before = await currentVersion(db);

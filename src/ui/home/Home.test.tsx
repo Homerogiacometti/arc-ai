@@ -136,6 +136,34 @@ describe('Home', () => {
     expect(screen.queryByText('Pausada')).not.toBeInTheDocument();
   });
 
+  it('a conversa seguinte continua da anterior no mesmo idioma', async () => {
+    const user = userEvent.setup();
+    const { provider, services } = await setup();
+
+    await user.click(screen.getByRole('button', { name: 'Iniciar' }));
+    await screen.findByRole('timer');
+    expect(provider.current.options.systemInstruction).not.toContain('LAST CONVERSATION');
+    expect(provider.current.sentText[0]).toContain('just started');
+    act(() => {
+      provider.current.events.onTranscript('ai', 'How was your weekend?');
+      provider.current.events.onTranscript('user', 'Yesterday I go to the beach');
+    });
+    await user.click(screen.getByRole('button', { name: 'Parar' }));
+    expect(await screen.findByRole('heading', { name: 'Feedback' })).toBeInTheDocument();
+    await vi.waitFor(async () => {
+      expect((await services.sessions.list())[0]?.feedbackStatus).toBe('ready');
+    });
+
+    await user.click(screen.getAllByRole('button', { name: /Fechar/ })[0] as HTMLElement);
+    await user.click(await screen.findByRole('button', { name: 'Iniciar' }));
+    await screen.findByRole('timer');
+    const instruction = provider.current.options.systemInstruction;
+    expect(instruction).toContain('LAST CONVERSATION (earlier today)');
+    expect(instruction).toContain('never open the same way): "How was your weekend?"');
+    expect(instruction).toContain('vai voltar à praia no próximo feriado');
+    expect(provider.current.sentText[0]).toContain('continuation');
+  });
+
   it('ao encerrar, salva a sessão, mostra o feedback e o histórico', async () => {
     const user = userEvent.setup();
     const { provider, services, generateJson } = await setup();
@@ -158,7 +186,7 @@ describe('Home', () => {
     await user.click(screen.getAllByRole('button', { name: /Fechar/ })[0] as HTMLElement);
     await user.click(await screen.findByRole('button', { name: 'Menu' }));
     await user.click(await screen.findByRole('button', { name: 'Histórico' }));
-    await user.click(await screen.findByRole('button', { name: /Inglês · Equilibrada/ }));
+    await user.click(await screen.findByRole('button', { name: /Equilibrada/ }));
 
     expect(await screen.findByRole('heading', { name: 'Sessão' })).toBeInTheDocument();
     expect(

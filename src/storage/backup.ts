@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Database, Row } from './database';
-import { currentVersion, SEED_LEARNER_INFO } from './migrations';
+import { currentVersion, planRowsByLanguage, SEED_LEARNER_INFO } from './migrations';
 
 /**
  * Backup (RF14): JSON versionado com todas as tabelas do app — perfil, memória, plano,
@@ -87,11 +87,19 @@ export async function importBackup(db: Database, backup: Backup): Promise<void> 
     }
   }
 
+  const tables = { ...backup.tables };
+  if (backup.schemaVersion < 7 && tables.practice_plan) {
+    const codes = [...(tables.learner_profile ?? []), ...(tables.settings ?? [])]
+      .map((row) => row.language_code)
+      .filter((code): code is string => typeof code === 'string');
+    tables.practice_plan = planRowsByLanguage(tables.practice_plan, codes);
+  }
+
   await db.run('BEGIN');
   try {
     for (const table of [...order].reverse()) await db.run(`DELETE FROM "${table}"`);
     for (const table of order) {
-      for (const row of backup.tables[table] ?? []) await insert(db, table, row);
+      for (const row of tables[table] ?? []) await insert(db, table, row);
     }
     if (!backup.tables.learner_info) await db.run(SEED_LEARNER_INFO);
     await db.run('COMMIT');

@@ -1,12 +1,8 @@
-import { useEffect, useState } from 'react';
-import { useServices } from '../../app/services-context';
-import { findLanguage, type Language, type LanguageCode } from '../../config/languages';
 import type { SessionSnapshot } from '../../conversation/session-controller';
-import { useSettingsStore } from '../../store/settings';
+import { LanguageFlags } from '../LanguageFlags';
 import { Logo } from '../Logo';
 import { formatDuration } from '../format';
 import { useNavigation } from '../navigation';
-import { useUpdateSettings } from '../use-update-settings';
 import { useConversation } from './use-conversation';
 import './Home.css';
 
@@ -98,60 +94,6 @@ export function Home() {
         </button>
       </section>
     </main>
-  );
-}
-
-/**
- * Bandeiras dos idiomas que o usuário aprende; a do idioma atual fica em destaque e tocar em
- * outra troca o idioma da próxima conversa.
- */
-function LanguageFlags({ disabled }: { disabled: boolean }) {
-  const { profiles } = useServices();
-  const languageCode = useSettingsStore((state) => state.languageCode);
-  const updateSettings = useUpdateSettings();
-  const [learning, setLearning] = useState<Language[]>([]);
-  const current = findLanguage(languageCode);
-
-  useEffect(() => {
-    let active = true;
-    void profiles.list().then((list) => {
-      if (!active) return;
-      setLearning(list.flatMap((profile) => findLanguage(profile.languageCode) ?? []));
-    });
-    return () => {
-      active = false;
-    };
-  }, [profiles]);
-
-  const languages = learning.some((language) => language.code === languageCode)
-    ? learning
-    : [...(current ? [current] : []), ...learning];
-
-  return (
-    <div className="flags" role="group" aria-label="Idioma atual">
-      <span className="visually-hidden">{current?.label}</span>
-      {languages.map((language) => {
-        const selected = language.code === languageCode;
-        return (
-          <button
-            key={language.code}
-            className={`flags__flag${selected ? ' flags__flag--current' : ''}`}
-            type="button"
-            aria-label={`Praticar ${language.label}`}
-            aria-pressed={selected}
-            disabled={disabled}
-            onClick={() => {
-              if (selected) return;
-              updateSettings({ languageCode: language.code as LanguageCode }).catch(() => {
-                // Se não salvar, continua no idioma atual.
-              });
-            }}
-          >
-            <span aria-hidden="true">{language.flag}</span>
-          </button>
-        );
-      })}
-    </div>
   );
 }
 

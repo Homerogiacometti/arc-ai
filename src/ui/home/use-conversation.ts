@@ -10,8 +10,8 @@ import {
 } from '../../conversation/session-controller';
 import {
   buildConversationInstruction,
+  buildOpeningCue,
   buildRecapCue,
-  OPENING_CUE,
   SILENCE_CUE,
 } from '../../prompts/conversation-instruction';
 import { hasUserSpeech } from '../../feedback/generate-feedback';
@@ -53,12 +53,15 @@ export function useConversation() {
   }, [running, services.screen]);
 
   const loadOptions = useCallback(async (): Promise<StartOptions> => {
-    const { languageCode, responseMode, pauseLevel, voice } = settings;
-    const [apiKey, profile, info, memory] = await Promise.all([
+    const { languageCode, responseMode, pauseLevel, voice, conversationStyle, customInstructions } =
+      settings;
+    const [apiKey, profile, info, memory, lastSession] = await Promise.all([
       services.apiKeyStore.get(),
       services.profiles.get(languageCode),
       services.learnerInfo.get(),
       services.memory.forLanguage(languageCode),
+      // Sem a conversa anterior, a sessão ainda começa; só não continua dela.
+      services.sessions.lastContext(languageCode).catch(() => null),
     ]);
     const language = findLanguage(languageCode);
     if (!apiKey) throw new Error('Chave de API ausente');
@@ -72,10 +75,13 @@ export function useConversation() {
         info,
         responseMode,
         memory,
+        style: conversationStyle,
+        customInstructions,
+        lastSession,
       }),
       silenceDurationMs: PAUSE_LEVELS[pauseLevel].silenceDurationMs,
       voiceName: voice,
-      openingCue: OPENING_CUE,
+      openingCue: buildOpeningCue(lastSession !== null),
       silenceCue: SILENCE_CUE,
       recapCue: buildRecapCue,
     };

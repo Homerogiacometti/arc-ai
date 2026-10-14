@@ -44,6 +44,32 @@ describe('Configurações', () => {
     expect(provider.current.options.systemInstruction).toContain('one or two sentences');
   });
 
+  it('estilo de conversa e instruções livres entram na próxima conversa', async () => {
+    const { user, services, provider } = await setup();
+    await openMenu(user, 'Configurações');
+    expect(await screen.findByLabelText(/^Bate-papo/)).toBeChecked();
+
+    await user.click(screen.getByLabelText(/^Entrevistador/));
+    await user.type(
+      screen.getByLabelText('Instruções para a IA (opcional)'),
+      'Me chame de Ho e fale de tecnologia',
+    );
+    await user.click(screen.getByRole('button', { name: 'Salvar instruções' }));
+    expect(await screen.findByText('Salvo.')).toBeInTheDocument();
+    expect(await services.settings.get()).toMatchObject({
+      conversationStyle: 'interviewer',
+      customInstructions: 'Me chame de Ho e fale de tecnologia',
+    });
+
+    await user.click(screen.getByRole('button', { name: '← Voltar' }));
+    await user.click(screen.getByRole('button', { name: '← Voltar' }));
+    await startConversation(user);
+    const instruction = provider.current.options.systemInstruction;
+    expect(instruction).toContain('always end your turn with a question');
+    expect(instruction).toContain('USER PREFERENCES');
+    expect(instruction).toContain('Me chame de Ho e fale de tecnologia');
+  });
+
   it('aparência troca o tema na hora e fica salva', async () => {
     const { user, services } = await setup();
     await openMenu(user, 'Configurações');

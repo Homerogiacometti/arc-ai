@@ -31,6 +31,8 @@ describe('config', () => {
         pauseLevel: 'long',
         voice: 'Kore',
         theme: 'light',
+        conversationStyle: 'debate',
+        customInstructions: 'Me chame de Ho',
       }).success,
     ).toBe(true);
     expect(

@@ -104,7 +104,8 @@ describe('EvaluationScreen', () => {
     });
 
     expect(await screen.findByText('B1', { selector: '.evaluation__level' })).toBeInTheDocument();
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Idioma' }), 'es-ES');
+    // A tela segue o idioma atual do app; as bandeiras do cabeçalho trocam o idioma.
+    await user.click(await screen.findByRole('button', { name: 'Praticar Espanhol' }));
     expect(await screen.findByText('A2', { selector: '.evaluation__level' })).toBeInTheDocument();
   });
 });

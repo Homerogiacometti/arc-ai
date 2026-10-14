@@ -23,32 +23,6 @@
   cursor: pointer;
 }
 
-.flags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.flags__flag {
-  padding: 4px 6px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: none;
-  font-size: 1.5rem;
-  line-height: 1;
-  opacity: 0.4;
-  cursor: pointer;
-}
-
-.flags__flag--current {
-  border-bottom-color: var(--accent);
-  opacity: 1;
-}
-
-.flags__flag:disabled {
-  cursor: default;
-}
-
 .home__center {
   flex: 1;
   display: flex;

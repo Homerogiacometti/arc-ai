@@ -22,7 +22,7 @@ async function fill(db: Database) {
     mistakes: ['Confunde ser e estar'],
     strengths: [],
   });
-  await new SqlPlanRepository(db).save({ daysPerWeek: 3, minutesPerDay: 15 });
+  await new SqlPlanRepository(db).save('es-ES', { daysPerWeek: 3, minutesPerDay: 15 });
   const sessions = new SqlSessionRepository(db);
   const id = await sessions.create({
     languageCode: 'es-ES',
@@ -52,7 +52,7 @@ async function snapshot(db: Database) {
     profiles: await new SqlProfileRepository(db).list(),
     info: await new SqlLearnerInfoRepository(db).get(),
     memory: await new SqlMemoryRepository(db).forLanguage('es-ES'),
-    plans: await new SqlPlanRepository(db).list(),
+    plans: await new SqlPlanRepository(db).list('es-ES'),
     session: first ? await sessions.get(first.id) : null,
   };
 }
@@ -166,5 +166,25 @@ describe('backup', () => {
       interests: 'tapas',
       goals: '',
     });
+  });
+
+  it('backup anterior ao plano por idioma copia o plano para cada idioma do backup', async () => {
+    const db = await createTestDatabase();
+    await fill(db);
+    await new SqlProfileRepository(db).save({ languageCode: 'en-US', level: 'advanced' });
+    const backup = await exportBackup(db);
+    const tables = {
+      ...backup.tables,
+      practice_plan: (backup.tables.practice_plan ?? [])
+        .filter((row) => row.language_code === 'es-ES')
+        .map((row) =>
+          Object.fromEntries(Object.entries(row).filter(([column]) => column !== 'language_code')),
+        ),
+    };
+    await importBackup(db, { ...backup, schemaVersion: 6, tables });
+    const plans = new SqlPlanRepository(db);
+    const expected = [{ daysPerWeek: 3, minutesPerDay: 15 }];
+    expect(await plans.list('es-ES')).toMatchObject(expected);
+    expect(await plans.list('en-US')).toMatchObject(expected);
   });
 });

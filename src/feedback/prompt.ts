@@ -6,7 +6,7 @@ import type { MemoryLists } from '../memory/memory';
 import type { TranscriptEntry } from '../storage/session-repository';
 
 /** Versão do prompt de feedback; incrementar a cada mudança de conteúdo. */
-export const FEEDBACK_PROMPT_VERSION = 3;
+export const FEEDBACK_PROMPT_VERSION = 4;
 
 const SKILL_LIST = Object.entries(SKILLS)
   .map(([key, label]) => `${key} (${label})`)
@@ -46,6 +46,8 @@ Regras:
 - Em "level.progress", diga de 0 a 100 quanto o aluno já avançou dentro desse nível CEFR (0 = acabou de chegar nele, 50 = no meio, 100 = pronto para o próximo).
 - Em "skills", avalie de 2 a 6 habilidades da lista abaixo que tiveram evidência clara nesta conversa: "strong" quando o aluno usou bem e com segurança, "weak" quando errou de forma relevante. Não inclua habilidades que não apareceram. Cada erro de "mistakes" deve aparecer como "weak" na habilidade correspondente, e uma habilidade não pode ser "strong" e "weak" ao mesmo tempo.
   Habilidades: ${SKILL_LIST}.
+- Em "topics", de 1 a 3 assuntos da conversa, cada um em poucas palavras (ex.: "viagem ao Chile", "trabalho novo").
+- Em "followUp", de 0 a 2 ganchos para a próxima conversa continuar desta: o que ficou em aberto ou o que o aluno contou que vai fazer (ex.: "tem entrevista de emprego na sexta"). Lista vazia se não houver.
 
 Memória:
 A IA da conversa usa uma memória curta do aluno para conduzir as próximas conversas: puxar assunto da vida dele, criar oportunidades de praticar os erros frequentes e reforçar o que ele já faz bem. Devolva em "memory" as três listas atualizadas e completas, partindo da memória atual:

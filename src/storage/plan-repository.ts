@@ -2,10 +2,10 @@ import { dateKey, planGoalSchema, type PlanGoal, type PracticePlan } from '../pl
 import type { Database } from './database';
 
 export interface PlanRepository {
-  /** Todas as vigências, da mais antiga à mais recente. */
-  list(): Promise<PracticePlan[]>;
-  /** Salva o plano valendo a partir de hoje (editar de novo no mesmo dia substitui). */
-  save(goal: PlanGoal): Promise<void>;
+  /** Todas as vigências do idioma, da mais antiga à mais recente. */
+  list(languageCode: string): Promise<PracticePlan[]>;
+  /** Salva o plano do idioma valendo a partir de hoje (editar de novo no mesmo dia substitui). */
+  save(languageCode: string, goal: PlanGoal): Promise<void>;
 }
 
 export class SqlPlanRepository implements PlanRepository {
@@ -17,9 +17,11 @@ export class SqlPlanRepository implements PlanRepository {
     this.#now = now;
   }
 
-  async list(): Promise<PracticePlan[]> {
+  async list(languageCode: string): Promise<PracticePlan[]> {
     const rows = await this.#db.query(
-      'SELECT valid_from, days_per_week, minutes_per_day FROM practice_plan ORDER BY valid_from',
+      `SELECT valid_from, days_per_week, minutes_per_day FROM practice_plan
+       WHERE language_code = ? ORDER BY valid_from`,
+      [languageCode],
     );
     return rows.map((row) => ({
       validFrom: String(row.valid_from),
@@ -28,17 +30,18 @@ export class SqlPlanRepository implements PlanRepository {
     }));
   }
 
-  async save(goal: PlanGoal): Promise<void> {
+  async save(languageCode: string, goal: PlanGoal): Promise<void> {
     const valid = planGoalSchema.parse(goal);
     const now = this.#now();
     await this.#db.run(
-      `INSERT INTO practice_plan (valid_from, days_per_week, minutes_per_day, updated_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT (valid_from) DO UPDATE SET
+      `INSERT INTO practice_plan
+         (language_code, valid_from, days_per_week, minutes_per_day, updated_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (language_code, valid_from) DO UPDATE SET
          days_per_week = excluded.days_per_week,
          minutes_per_day = excluded.minutes_per_day,
          updated_at = excluded.updated_at`,
-      [dateKey(now), valid.daysPerWeek, valid.minutesPerDay, now.toISOString()],
+      [languageCode, dateKey(now), valid.daysPerWeek, valid.minutesPerDay, now.toISOString()],
     );
   }
 }
