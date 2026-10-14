@@ -7,6 +7,7 @@ import {
   type ConversationProvider,
   type Speaker,
 } from './provider';
+import { isStopRequest } from './stop-request';
 
 export interface AudioInput {
   start(onChunk: (chunk: MicrophoneChunk) => void): Promise<void>;
@@ -298,9 +299,7 @@ export class SessionController {
         if (speaker === 'user') this.#markActivity();
         this.#appendTranscript(speaker, text);
       },
-      onEndRequested: () => {
-        if (current()) this.#onEndRequested();
-      },
+      onEndRequested: () => current() && this.#onEndRequested(),
       onResumeHandle: (handle) => {
         this.#resumeHandle = handle;
       },
@@ -490,8 +489,18 @@ export class SessionController {
     }
   }
 
-  #onEndRequested(): void {
-    if (this.#endRequested || !this.#isRunning()) return;
+  /**
+   * A IA às vezes chama end_session por conta própria, no meio da conversa. Só encerra se a
+   * última fala do usuário pede claramente para parar; fora isso, o encerramento é pelo botão.
+   */
+  #onEndRequested(): boolean {
+    if (this.#endRequested) return true;
+    if (!this.#isRunning()) return false;
+    const lastUserTurn = this.#transcript.findLast((turn) => turn.speaker === 'user');
+    if (!lastUserTurn || !isStopRequest(lastUserTurn.text)) {
+      log(`end_session recusado; última fala do usuário: "${lastUserTurn?.text.trim() ?? ''}"`);
+      return false;
+    }
     this.#endRequested = true;
     this.#stopClock();
     this.#set({ status: 'ending' });
@@ -499,6 +508,7 @@ export class SessionController {
     this.#goodbyeTimer = setTimeout(() => {
       void this.#finish('voice');
     }, this.#options.goodbyeTimeoutMs);
+    return true;
   }
 
   /** Depois de `end_session`, encerra quando a despedida terminar de tocar. */

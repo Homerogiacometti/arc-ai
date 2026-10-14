@@ -24,8 +24,11 @@ export interface ConversationEvents {
   onTurnComplete(): void;
   /** Fragmento de transcrição (RF09); fragmentos do mesmo turno chegam em sequência. */
   onTranscript(speaker: Speaker, text: string): void;
-  /** A IA chamou a ferramenta `end_session` (RF07). */
-  onEndRequested(): void;
+  /**
+   * A IA chamou a ferramenta `end_session` (RF07). Devolve se o app aceitou encerrar; recusado,
+   * a IA recebe a recusa e continua a conversa.
+   */
+  onEndRequested(): boolean;
   /** Novo handle para retomar a conversa depois. */
   onResumeHandle(handle: string): void;
   /**

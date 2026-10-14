@@ -21,9 +21,14 @@ export const END_SESSION_TOOL = 'end_session';
 const endSessionDeclaration: FunctionDeclaration = {
   name: END_SESSION_TOOL,
   description:
-    'Ends the practice session. Call it when the user asks to stop, in any language ' +
-    '(e.g. "let\'s stop", "vamos parar"), right after saying a short goodbye.',
+    'Ends the practice session. Call it only when the user has just clearly asked to stop, ' +
+    'in any language (e.g. "let\'s stop", "vamos parar"), right after saying a short goodbye. ' +
+    'Never call it on your own initiative.',
 };
+
+/** Resposta da ferramenta quando o app recusa encerrar. */
+export const END_REFUSED =
+  'Not ended: the user did not clearly ask to stop. Do not say goodbye; keep the conversation going.';
 
 export function buildLiveConfig(options: ConnectOptions): LiveConnectConfig {
   return {
@@ -46,7 +51,7 @@ export function buildLiveConfig(options: ConnectOptions): LiveConnectConfig {
 export function dispatchServerMessage(
   message: LiveServerMessage,
   events: ConversationEvents,
-  respondToTool: (id: string | undefined, name: string) => void,
+  respondToTool: (id: string | undefined, name: string, result: string) => void,
 ): void {
   const content = message.serverContent;
   if (content) {
@@ -65,8 +70,8 @@ export function dispatchServerMessage(
 
   for (const call of message.toolCall?.functionCalls ?? []) {
     if (call.name === END_SESSION_TOOL) {
-      respondToTool(call.id, call.name);
-      events.onEndRequested();
+      const accepted = events.onEndRequested();
+      respondToTool(call.id, call.name, accepted ? 'ok' : END_REFUSED);
     }
   }
 
@@ -88,9 +93,9 @@ export class GeminiLiveProvider implements ConversationProvider {
     let closedByApp = false;
     let session: Session | null = null;
 
-    const respondToTool = (id: string | undefined, name: string) => {
+    const respondToTool = (id: string | undefined, name: string, result: string) => {
       session?.sendToolResponse({
-        functionResponses: [{ ...(id ? { id } : {}), name, response: { result: 'ok' } }],
+        functionResponses: [{ ...(id ? { id } : {}), name, response: { result } }],
       });
     };
 

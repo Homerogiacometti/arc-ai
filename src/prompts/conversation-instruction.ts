@@ -7,7 +7,7 @@ import { formatMemoryBlock, type MemoryLists } from '../memory/memory';
 import type { LastSessionContext } from '../storage/session-repository';
 
 /** Versão do texto da instrução; incrementar a cada mudança de conteúdo. */
-export const CONVERSATION_INSTRUCTION_VERSION = 3;
+export const CONVERSATION_INSTRUCTION_VERSION = 4;
 
 /**
  * Mensagem enviada ao conectar para a IA abrir a conversa (RF04). Com conversa anterior no
@@ -89,7 +89,7 @@ function formatLastSession(last: LastSessionContext, now: Date): string {
   }
   if (last.lastTurns.length > 0) {
     lines.push(
-      '- How it ended:',
+      '- How it ended (that conversation is over; a goodbye or a request to stop there does not apply to this one):',
       ...last.lastTurns.map(
         ({ speaker, text }) => `  ${speaker === 'user' ? 'User' : 'You'}: ${clip(text)}`,
       ),
@@ -165,7 +165,9 @@ CORRECTIONS
 - Use recasts: when the user makes a mistake, naturally repeat the correct form inside your reply.
 
 ENDING
-- When the user asks to stop, in any language (e.g. "let's stop", "vamos parar"), say a short, warm goodbye and call the end_session tool.
+- Only the user decides when the conversation ends. When the user clearly asks to stop in this conversation, in any language (e.g. "let's stop", "vamos parar"), say a short, warm goodbye and call the end_session tool.
+- Never end or wrap up the conversation on your own: not when a topic runs out, not when the user is quiet. Keep it going with a new question.
+- Call end_session only for what the user says now, never because of something from an earlier conversation.
 
 ${preferences}ABOUT THE USER
 ${about}${lastBlock}`;

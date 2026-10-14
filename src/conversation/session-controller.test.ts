@@ -135,6 +135,7 @@ describe('SessionController', () => {
       const t = setup();
       await t.start();
       const { events } = t.provider.current;
+      events.onTranscript('user', 'Vamos parar.');
       events.onAudio(new Int16Array(10));
       events.onEndRequested();
       expect(t.controller.snapshot.status).toBe('ending');
@@ -154,6 +155,7 @@ describe('SessionController', () => {
       try {
         const t = setup();
         await t.start();
+        t.provider.current.events.onTranscript('user', 'Vamos parar.');
         t.provider.current.events.onAudio(new Int16Array(10));
         t.provider.current.events.onEndRequested();
         await vi.advanceTimersByTimeAsync(5_000);
@@ -161,6 +163,28 @@ describe('SessionController', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    it('recusa end_session antes de o usuário falar', async () => {
+      const t = setup();
+      await t.start();
+      const { events } = t.provider.current;
+      events.onTranscript('ai', '¡Hola de nuevo!');
+      expect(events.onEndRequested()).toBe(false);
+      expect(t.controller.snapshot.status).toBe('active');
+      expect(t.input().stopped).toBe(false);
+      expect(t.ended).not.toHaveBeenCalled();
+    });
+
+    it('recusa end_session no meio da conversa sem pedido do usuário', async () => {
+      const t = setup();
+      await t.start();
+      const { events } = t.provider.current;
+      events.onTranscript('user', 'I went to the beach last weekend.');
+      events.onTranscript('ai', 'That sounds lovely! Well, it was nice talking. Bye!');
+      expect(events.onEndRequested()).toBe(false);
+      expect(t.controller.snapshot.status).toBe('active');
+      expect(t.ended).not.toHaveBeenCalled();
     });
   });
 

@@ -4,6 +4,7 @@ import type { ConversationEvents } from './provider';
 import {
   buildLiveConfig,
   dispatchServerMessage,
+  END_REFUSED,
   END_SESSION_TOOL,
   parseDurationMs,
 } from './gemini-live-provider';
@@ -14,7 +15,7 @@ function events() {
     onInterrupted: vi.fn(),
     onTurnComplete: vi.fn(),
     onTranscript: vi.fn(),
-    onEndRequested: vi.fn(),
+    onEndRequested: vi.fn(() => true),
     onResumeHandle: vi.fn(),
     onGoAway: vi.fn(),
     onUsage: vi.fn(),
@@ -90,8 +91,17 @@ describe('dispatchServerMessage', () => {
       { toolCall: { functionCalls: [{ id: 'c1', name: END_SESSION_TOOL, args: {} }] } },
       handlers,
     );
-    expect(respond).toHaveBeenCalledWith('c1', END_SESSION_TOOL);
+    expect(respond).toHaveBeenCalledWith('c1', END_SESSION_TOOL, 'ok');
     expect(handlers.onEndRequested).toHaveBeenCalledOnce();
+  });
+
+  it('avisa a IA quando o app recusa encerrar', () => {
+    const handlers = { ...events(), onEndRequested: vi.fn(() => false) };
+    const respond = dispatch(
+      { toolCall: { functionCalls: [{ id: 'c1', name: END_SESSION_TOOL, args: {} }] } },
+      handlers,
+    );
+    expect(respond).toHaveBeenCalledWith('c1', END_SESSION_TOOL, END_REFUSED);
   });
 
   it('guarda só handles retomáveis e repassa goAway e uso', () => {
